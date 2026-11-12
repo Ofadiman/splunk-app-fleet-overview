@@ -1,0 +1,5 @@
+[project]
+name = "fleet-overview"
+version = "0.1.0"
+requires-python = "==3.13.*"
+dependencies = ["splunk-appinspect==4.4.0"]

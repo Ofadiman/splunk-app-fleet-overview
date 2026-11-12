@@ -1,0 +1,18 @@
+[tools]
+python = "3.13.18"
+uv = "0.13.7"
+jq = "1.8.2"
+"conda:libmagic" = "5.48"
+
+[env]
+UV_CONFIG_FILE = "{{config_root}}/uv.toml"
+
+[tasks.appinspect]
+description = "Package the app and validate it with Splunk AppInspect"
+run = [
+  "pnpm run package",
+  "uv sync --frozen",
+  'DYLD_FALLBACK_LIBRARY_PATH="$(mise where conda:libmagic)/lib" .venv/bin/splunk-appinspect inspect dist/fleet_overview.tar.gz --mode test --data-format json --output-file dist/appinspect.json',
+  "jq --raw-output '.reports[].groups[].checks[] | select(.result == \"failure\" or .result == \"error\" or .result == \"warning\") | \"[\\(.result)] \\(.name): \\(.messages[0].message // \"\")\"' dist/appinspect.json",
+  "jq --exit-status '.summary.failure == 0 and .summary.error == 0' dist/appinspect.json > /dev/null",
+]
