@@ -247,6 +247,11 @@ Each view uses Splunk's built-in `pages/splunk_ui_app.html` template. That templ
 `appserver/static/pages/<view name>.js` from the app as a classic script, so every folder in
 `src/pages/` is built separately into one self-contained script named after the folder.
 
+`renderPage` passes `hideAppBar: true` to `layout`, so pages render without the app bar, the bar
+that lists the views from the nav file. The Splunk bar stays. Links between pages have to be part
+of the page content. The nav file still sets the page that opens at `/app/fleet_overview/`, through
+`default="true"`.
+
 To add a page:
 
 1. Create `src/pages/<name>/index.tsx` that calls `renderPage` with the page content and title.

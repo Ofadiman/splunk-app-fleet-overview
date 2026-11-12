@@ -18,7 +18,7 @@ export const renderPage = (page: ReactElement, pageTitle: string) => {
                 >
                     {page}
                 </SplunkThemeProvider>,
-                { pageTitle, theme, navLayout: 'auto' },
+                { pageTitle, theme, navLayout: 'auto', hideAppBar: true },
             );
         })
         .catch((error: unknown) => {
