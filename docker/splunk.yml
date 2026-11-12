@@ -3,8 +3,16 @@ splunk:
     - key: server
       value:
         content:
+          general:
+            sessionTimeout: 365d
           deployment:
             pass4SymmKey: fleet-overview-deployment-key
+    - key: web
+      value:
+        content:
+          settings:
+            tools.sessions.timeout: "525600"
+            ui_inactivity_timeout: "0"
     - key: restmap
       value:
         content:

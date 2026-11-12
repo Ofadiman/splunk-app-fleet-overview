@@ -61,6 +61,16 @@ Compose builds every image from a target in `Dockerfile` on the first start:
 
 After changing `Dockerfile` or a file in `docker/`, add `--build` to the start command.
 
+`docker/splunk.yml` also keeps you logged in to Splunk Web for the whole run:
+
+- `ui_inactivity_timeout = 0` in `[settings]` of `web.conf` keeps the session alive for as long as
+  a Splunk tab is open.
+- `tools.sessions.timeout = 525600` in `[settings]` of `web.conf` and `sessionTimeout = 365d` in
+  `[general]` of `server.conf` keep it alive for a year with no tab open. Browsers keep a cookie for
+  at most 400 days, so a longer timeout wouldn't last any longer.
+
+A new run starts a new Splunk, so you log in once per run.
+
 ## Forwarders
 
 `compose.yaml` also starts five universal forwarders, one per version, built from the
