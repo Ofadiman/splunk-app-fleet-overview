@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { create } from 'tar';
 
 const appId = 'fleet_overview';
-const stageDir = fileURLToPath(new URL('../stage', import.meta.url));
+const appDir = fileURLToPath(new URL('../fleet_overview', import.meta.url));
 const distDir = fileURLToPath(new URL('../dist', import.meta.url));
 const file = `${distDir}/${appId}.tar.gz`;
 
@@ -14,12 +14,12 @@ await create(
     {
         gzip: true,
         file,
-        cwd: stageDir,
+        cwd: appDir,
         prefix: appId,
         portable: true,
         filter: (path) => !basename(path).startsWith('.'),
     },
-    readdirSync(stageDir).filter((name) => !name.startsWith('.')),
+    readdirSync(appDir).filter((name) => !name.startsWith('.')),
 );
 
 console.log(`Created ${file}`);

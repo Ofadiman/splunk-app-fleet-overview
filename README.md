@@ -19,16 +19,14 @@ It started from `npx @splunk/create --mode=standalone` and adds the Splunk app p
     pnpm install
     ```
 
-2. Create a `.env` file next to `compose.yaml` with an admin password for the local Splunk:
+2. If ports 8000 or 8089 are taken on your machine, create a `.env` file next to `compose.yaml`
+   with free ports:
 
     ```bash
-    printf 'SPLUNK_PASSWORD=%s\n' "$(openssl rand -hex 16)" > .env
+    printf 'SPLUNK_WEB_PORT=18000\nSPLUNK_MGMT_PORT=18089\n' > .env
     ```
 
-    If ports 8000 or 8089 are taken on your machine, add `SPLUNK_WEB_PORT` and `SPLUNK_MGMT_PORT`
-    to `.env` with free ports.
-
-3. Build the app once, so `stage/` exists before the container mounts it:
+3. Build the app once, so `fleet_overview/` exists before the container mounts it:
 
     ```bash
     pnpm build
@@ -37,16 +35,33 @@ It started from `npx @splunk/create --mode=standalone` and adds the Splunk app p
 4. Start Splunk:
 
     ```bash
-    docker compose up --detach
+    docker compose up --detach --renew-anon-volumes
     ```
 
-    The first start takes several minutes. Wait until `docker compose ps` shows the container as
-    `healthy`, then open `http://localhost:8000/en-US/app/fleet_overview/overview` (or your
-    `SPLUNK_WEB_PORT`) and log in as `admin` with the password from `.env`.
+    Each start sets up Splunk from scratch, which takes about two minutes. Wait until
+    `docker compose ps` shows the container as `healthy`, then open
+    `http://localhost:8000/en-US/app/fleet_overview/overview` (or your `SPLUNK_WEB_PORT`) and log
+    in as `admin` with the password `password`.
+
+5. Stop Splunk and delete everything it stored:
+
+    ```bash
+    docker compose down --volumes
+    ```
+
+The container keeps no state between runs. Splunk's configuration and data live in unnamed volumes
+that the image itself declares. `--renew-anon-volumes` replaces them on every start, and
+`--volumes` deletes them on stop, so they don't pile up on disk. `docker compose restart` keeps
+them, so a restart within one run keeps your data.
+
+The container runs a small image built from `Dockerfile` on top of `splunk/splunk`. It creates
+`/opt/splunk/etc/apps` owned by the `splunk` user, so Splunk can still install its built-in apps
+next to the mounted `fleet_overview`. Compose builds it on the first start. After changing the
+Dockerfile, add `--build` to the start command.
 
 ## Development
 
-Run `pnpm dev` to rebuild `stage/` on every change, then refresh the page in Splunk.
+Run `pnpm dev` to rebuild `fleet_overview/` on every change, then refresh the page in Splunk.
 
 - Splunk caches static files. If the browser keeps the old JavaScript, open
   `http://localhost:8000/en-US/_bump` and press the button to clear the cache.
@@ -55,8 +70,8 @@ Run `pnpm dev` to rebuild `stage/` on every change, then refresh the page in Spl
 
 ## Scripts
 
-- `pnpm dev` - Rebuild the app into `stage/` on every change
-- `pnpm build` - Type-check and build the app into `stage/`
+- `pnpm dev` - Rebuild the app into `fleet_overview/` on every change
+- `pnpm build` - Type-check and build the app into `fleet_overview/`
 - `pnpm package` - Build and create `dist/fleet_overview.tar.gz`, installable in Splunk
 - `pnpm test` - Run tests once
 - `pnpm test:watch` - Run tests in watch mode
@@ -92,14 +107,16 @@ AppInspect reports any failure or error.
 
 ```
 .
-├── compose.yaml                 Local Splunk with stage/ mounted as the fleet_overview app
+├── compose.yaml                 Local Splunk with fleet_overview/ mounted as the app
+├── Dockerfile                   Splunk image with the apps folder owned by the splunk user
+├── .dockerignore                Keeps the repository out of the Docker build
 ├── mise.toml                    Pinned tools (Node.js, pnpm, AppInspect tooling), appinspect task
 ├── pyproject.toml, uv.lock      AppInspect and its locked Python dependencies
 ├── uv.toml                      uv settings for this repository: public PyPI, mise's Python
 ├── scripts/
 │   ├── build-pages.mjs          Builds each folder in src/pages into its own page script
-│   └── package-app.mjs          Packs stage/ into dist/fleet_overview.tar.gz
-├── splunk/                      Splunk app files, copied as-is into stage/
+│   └── package-app.mjs          Packs fleet_overview/ into dist/fleet_overview.tar.gz
+├── splunk/                      Splunk app files, copied as-is into fleet_overview/
 │   ├── default/app.conf
 │   ├── default/data/ui/nav/default.xml
 │   ├── default/data/ui/views/overview.xml

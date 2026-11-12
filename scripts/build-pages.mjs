@@ -6,15 +6,15 @@ import { build } from 'vite';
 const watch = process.argv.includes('--watch');
 const root = fileURLToPath(new URL('..', import.meta.url));
 const pagesDir = join(root, 'src/pages');
-const stageDir = join(root, 'stage');
+const appDir = join(root, 'fleet_overview');
 
 const pages = readdirSync(pagesDir, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
     .map((entry) => entry.name);
 
-mkdirSync(stageDir, { recursive: true });
-for (const name of readdirSync(stageDir)) {
-    rmSync(join(stageDir, name), { recursive: true, force: true });
+mkdirSync(appDir, { recursive: true });
+for (const name of readdirSync(appDir)) {
+    rmSync(join(appDir, name), { recursive: true, force: true });
 }
 
 for (const [index, page] of pages.entries()) {

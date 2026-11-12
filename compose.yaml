@@ -1,20 +1,14 @@
 services:
   splunk:
-    image: splunk/splunk:10.6.1.1
+    build: .
     platform: linux/amd64
     environment:
       SPLUNK_START_ARGS: --accept-license
       SPLUNK_GENERAL_TERMS: --accept-sgt-current-at-splunk-com
-      SPLUNK_PASSWORD: ${SPLUNK_PASSWORD:?set SPLUNK_PASSWORD in .env}
+      SPLUNK_PASSWORD: password
       SPLUNK_HOME_OWNERSHIP_ENFORCEMENT: "false"
     ports:
       - 127.0.0.1:${SPLUNK_WEB_PORT:-8000}:8000
       - 127.0.0.1:${SPLUNK_MGMT_PORT:-8089}:8089
     volumes:
-      - ./stage:/opt/splunk/etc/apps/fleet_overview:ro
-      - splunk-etc:/opt/splunk/etc
-      - splunk-var:/opt/splunk/var
-
-volumes:
-  splunk-etc:
-  splunk-var:
+      - ./fleet_overview:/opt/splunk/etc/apps/fleet_overview:ro

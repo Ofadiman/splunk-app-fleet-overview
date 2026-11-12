@@ -23,6 +23,6 @@ dist-ssr
 *.sln
 *.sw?
 
-stage
+/fleet_overview
 .env
 .venv
