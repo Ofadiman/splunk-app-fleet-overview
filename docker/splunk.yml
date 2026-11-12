@@ -16,6 +16,17 @@ splunk:
             use_future_expires: "false"
             replyHeader.Cache-Control: no-store
             cacheEntriesLimit: "0"
+            enable_insecure_login: "true"
+            updateCheckerBaseURL: "0"
+    - key: telemetry
+      value:
+        directory: /opt/splunk/etc/apps/splunk_instrumentation/local
+        content:
+          general:
+            sendAnonymizedUsage: "false"
+            sendLicenseUsage: "false"
+            sendAnonymizedWebAnalytics: "false"
+            optInVersionAcknowledged: "4"
     - key: ui-tour
       value:
         content:
@@ -25,7 +36,6 @@ splunk:
       value:
         content:
           general:
-            dismissedInstrumentationOptInVersion: "4"
             hideInstrumentationOptInModal: "1"
     - key: restmap
       value:

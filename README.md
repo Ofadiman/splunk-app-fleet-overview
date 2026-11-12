@@ -32,10 +32,16 @@ It started from `npx @splunk/create --mode=standalone` and adds the Splunk app p
     ```
 
     Each start sets up Splunk from scratch, which takes about two minutes. Wait until
-    `docker compose ps` shows the `splunk` container as `healthy`, then open
-    `http://localhost:18000/en-US/app/fleet_overview/overview` and log in as `admin` with the
-    password `password`. Splunk's management port is on `https://localhost:18089`. To start Splunk
-    without the forwarders, add `splunk` to the end of the command.
+    `docker compose ps` shows the `splunk` container as `healthy`, then open this URL, which logs
+    you in as `admin` with the password `password` and opens the app:
+
+    ```
+    http://localhost:18000/en-US/account/insecurelogin?username=admin&password=password&return_to=/en-US/app/fleet_overview/overview
+    ```
+
+    Bookmark it, because you log in again after every start and restart. Splunk's management port
+    is on `https://localhost:18089`. To start Splunk without the forwarders, add `splunk` to the end
+    of the command.
 
 4. Stop Splunk and the forwarders, and delete everything they stored:
 
@@ -70,25 +76,31 @@ After changing `Dockerfile` or a file in `docker/`, add `--build` to the start c
   at most 400 days, so a longer timeout wouldn't last any longer.
 
 Splunk forgets every session when it restarts, so you still log in after each start and each
-`docker compose restart`.
+`docker compose restart`. `enable_insecure_login = true` in `[settings]` of `web.conf` turns on the
+`/account/insecurelogin` URL from [Getting started](#getting-started), which logs you in with the
+user name and password in the URL. Only use it locally: Splunk Web listens on `127.0.0.1` only, and
+the password is already in `Dockerfile`.
 
 `docker/splunk.yml` also turns off the tour that Splunk offers the first time you open the Search
 page. `viewed = 1` in `[search-tour]` of `ui-tour.conf` is what Splunk saves after you skip or
 finish the tour.
 
-It also hides the "Helping You Get More Value from Splunk Software" window that Splunk shows after
-the first login. `[general]` of `user-prefs.conf` holds the two settings Splunk saves when you
-close it, and both are needed:
+It also turns off telemetry, and hides the "Helping You Get More Value from Splunk Software" window
+that Splunk shows after the first login. With these settings, the app's pages send no requests
+outside your machine:
 
-- `dismissedInstrumentationOptInVersion = 4` hides it on the Search page and the other classic
-  pages. It must be at least `optInVersion` in `telemetry.conf` of the `splunk_instrumentation`
-  app, which is `4` in Splunk 10.6.1.1. If a newer Splunk raises `optInVersion`, the window comes
-  back until you raise this value too.
-- `hideInstrumentationOptInModal = 1` hides it on the launcher home page.
-
-Hiding the window doesn't turn off telemetry. `sendAnonymizedUsage`, `sendLicenseUsage` and
-`sendAnonymizedWebAnalytics` in `telemetry.conf` stay `true`, the same as after you close the
-window.
+- `telemetry.conf` in `[general]`, written to `etc/apps/splunk_instrumentation/local/`:
+    - `sendAnonymizedUsage`, `sendLicenseUsage` and `sendAnonymizedWebAnalytics` are `false`. The
+      last one stops every page from loading `swa.js`, which reports Splunk Web usage to Splunk.
+    - `optInVersionAcknowledged = 4` marks the window as answered. Without it, Splunk turns
+      `sendLicenseUsage` back on at every start, and shows the window on the Search page and the
+      other classic pages. It must be at least `optInVersion` in the same file, which is `4` in
+      Splunk 10.6.1.1. If a newer Splunk raises `optInVersion`, raise this value too.
+- `hideInstrumentationOptInModal = 1` in `[general]` of `user-prefs.conf` hides the window on the
+  launcher home page, which ignores `optInVersionAcknowledged`.
+- `updateCheckerBaseURL = 0` in `[settings]` of `web.conf` stops every page from asking
+  `quickdraw.splunk.com` for new Splunk versions. That request includes the instance GUID and the
+  license details.
 
 ## Forwarders
 
@@ -161,8 +173,10 @@ Run `pnpm dev` to rebuild `fleet_overview/` on every change, then refresh the pa
     - `replyHeader.Cache-Control = no-store` adds a header that tells the browser not to store any
       response. Without it, static files have no caching headers, and the browser can choose to
       cache them anyway.
-- Splunk reads `.conf` and view files at startup. After changing files in `splunk/`, run
-  `pnpm build` and `docker compose restart`.
+- Splunk reads `.conf`, nav and view files at startup. After changing files in `splunk/`, run
+  `pnpm build`, then open `http://localhost:18000/en-US/debug/refresh` and press **Refresh**.
+  Splunk reloads the app's views, nav and `app.conf` without restarting, so you stay logged in. If
+  a change still doesn't show up, run `docker compose restart`.
 
 ## Scripts
 
@@ -203,7 +217,7 @@ AppInspect reports any failure or error.
 ├── compose.yaml                 Local Splunk with fleet_overview/ mounted as the app, and forwarders
 ├── Dockerfile                   splunk and splunkforwarder targets: environment and settings files
 ├── docker/
-│   ├── splunk.yml               Splunk settings: deployment key and authentication, sessions, popups, caching
+│   ├── splunk.yml               Splunk settings: deployment auth, sessions, login, popups, telemetry, caching
 │   └── splunkforwarder.yml      Forwarder settings: names, deployment server, the same pass4SymmKey
 ├── .dockerignore                Keeps everything but docker/*.yml out of the Docker build
 ├── mise.toml                    Pinned tools (Node.js, pnpm, AppInspect tooling), appinspect task
