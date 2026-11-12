@@ -4,8 +4,8 @@ services:
       target: splunk
     platform: linux/amd64
     ports:
-      - 127.0.0.1:${SPLUNK_WEB_PORT:-8000}:8000
-      - 127.0.0.1:${SPLUNK_MGMT_PORT:-8089}:8089
+      - 127.0.0.1:18000:8000
+      - 127.0.0.1:18089:8089
     volumes:
       - ./fleet_overview:/opt/splunk/etc/apps/fleet_overview:ro
 

@@ -19,20 +19,13 @@ It started from `npx @splunk/create --mode=standalone` and adds the Splunk app p
     pnpm install
     ```
 
-2. If ports 8000 or 8089 are taken on your machine, create a `.env` file next to `compose.yaml`
-   with free ports:
-
-    ```bash
-    printf 'SPLUNK_WEB_PORT=18000\nSPLUNK_MGMT_PORT=18089\n' > .env
-    ```
-
-3. Build the app once, so `fleet_overview/` exists before the container mounts it:
+2. Build the app once, so `fleet_overview/` exists before the container mounts it:
 
     ```bash
     pnpm build
     ```
 
-4. Start Splunk and the [forwarders](#forwarders):
+3. Start Splunk and the [forwarders](#forwarders):
 
     ```bash
     docker compose up --detach --renew-anon-volumes
@@ -40,11 +33,11 @@ It started from `npx @splunk/create --mode=standalone` and adds the Splunk app p
 
     Each start sets up Splunk from scratch, which takes about two minutes. Wait until
     `docker compose ps` shows the `splunk` container as `healthy`, then open
-    `http://localhost:8000/en-US/app/fleet_overview/overview` (or your `SPLUNK_WEB_PORT`) and log
-    in as `admin` with the password `password`. To start Splunk without the forwarders, add
-    `splunk` to the end of the command.
+    `http://localhost:18000/en-US/app/fleet_overview/overview` and log in as `admin` with the
+    password `password`. Splunk's management port is on `https://localhost:18089`. To start Splunk
+    without the forwarders, add `splunk` to the end of the command.
 
-5. Stop Splunk and the forwarders, and delete everything they stored:
+4. Stop Splunk and the forwarders, and delete everything they stored:
 
     ```bash
     docker compose down --volumes
@@ -131,7 +124,7 @@ server rejects a forwarder with a different key, or with no key, and logs
 Run `pnpm dev` to rebuild `fleet_overview/` on every change, then refresh the page in Splunk.
 
 - Splunk caches static files. If the browser keeps the old JavaScript, open
-  `http://localhost:8000/en-US/_bump` and press the button to clear the cache.
+  `http://localhost:18000/en-US/_bump` and press the button to clear the cache.
 - Splunk reads `.conf` and view files at startup. After changing files in `splunk/`, run
   `pnpm build` and `docker compose restart`.
 
