@@ -1,14 +1,65 @@
 services:
   splunk:
-    build: .
+    build:
+      target: splunk
     platform: linux/amd64
-    environment:
-      SPLUNK_START_ARGS: --accept-license
-      SPLUNK_GENERAL_TERMS: --accept-sgt-current-at-splunk-com
-      SPLUNK_PASSWORD: password
-      SPLUNK_HOME_OWNERSHIP_ENFORCEMENT: "false"
     ports:
       - 127.0.0.1:${SPLUNK_WEB_PORT:-8000}:8000
       - 127.0.0.1:${SPLUNK_MGMT_PORT:-8089}:8089
     volumes:
       - ./fleet_overview:/opt/splunk/etc/apps/fleet_overview:ro
+
+  yennefer:
+    build:
+      target: splunkforwarder
+      args:
+        SPLUNKFORWARDER_VERSION: 9.3.13
+        GUID: F432A8B8-4ADB-42DE-9184-D79990A48FB0
+        CLIENT_NAME: Yennefer
+        INSTANCE_NAME: splunkforwarder-9-3-13
+    platform: linux/amd64
+    hostname: yennefer.splunk.com
+
+  ciri:
+    build:
+      target: splunkforwarder
+      args:
+        SPLUNKFORWARDER_VERSION: 9.4.12
+        GUID: 1C0F090E-085D-426A-BA94-A99A0D352D48
+        CLIENT_NAME: Ciri
+        INSTANCE_NAME: splunkforwarder-9-4-12
+    platform: linux/amd64
+    hostname: ciri.splunk.com
+
+  triss:
+    build:
+      target: splunkforwarder
+      args:
+        SPLUNKFORWARDER_VERSION: 10.0.7
+        GUID: 316BB7CA-93DC-4C3C-BE06-D154E9A38A0C
+        CLIENT_NAME: Triss
+        INSTANCE_NAME: splunkforwarder-10-0-7
+    platform: linux/amd64
+    hostname: triss.splunk.com
+
+  vesemir:
+    build:
+      target: splunkforwarder
+      args:
+        SPLUNKFORWARDER_VERSION: 10.2.4
+        GUID: 9AFF545B-0AC6-4062-95CF-BDD989C175D6
+        CLIENT_NAME: Vesemir
+        INSTANCE_NAME: splunkforwarder-10-2-4
+    platform: linux/amd64
+    hostname: vesemir.splunk.com
+
+  dandelion:
+    build:
+      target: splunkforwarder
+      args:
+        SPLUNKFORWARDER_VERSION: 10.4.0
+        GUID: C211DFA1-A277-44AB-BD49-840AB198CB45
+        CLIENT_NAME: Dandelion
+        INSTANCE_NAME: splunkforwarder-10-4-0
+    platform: linux/amd64
+    hostname: dandelion.splunk.com

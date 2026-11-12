@@ -1,0 +1,16 @@
+splunk:
+  conf:
+    - key: server
+      value:
+        content:
+          deployment:
+            pass4SymmKey: fleet-overview-deployment-key
+    - key: restmap
+      value:
+        content:
+          broker:broker:
+            authKeyStanza: deployment
+            requireAuthentication: "true"
+          streams:deployment:
+            authKeyStanza: deployment
+            requireAuthentication: "true"

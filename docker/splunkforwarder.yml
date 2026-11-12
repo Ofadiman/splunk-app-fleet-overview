@@ -1,0 +1,17 @@
+splunk:
+  conf:
+    - key: server
+      value:
+        content:
+          general:
+            serverName: "{{ lookup('env', 'INSTANCE_NAME') }}"
+          deployment:
+            pass4SymmKey: fleet-overview-deployment-key
+    - key: deploymentclient
+      value:
+        content:
+          deployment-client:
+            clientName: "{{ lookup('env', 'CLIENT_NAME') }}"
+            phoneHomeIntervalInSecs: 1
+          target-broker:deploymentServer:
+            targetUri: splunk:8089

@@ -1,1 +1,3 @@
 *
+!docker/splunk.yml
+!docker/splunkforwarder.yml
