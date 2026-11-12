@@ -69,7 +69,12 @@ After changing `Dockerfile` or a file in `docker/`, add `--build` to the start c
   `[general]` of `server.conf` keep it alive for a year with no tab open. Browsers keep a cookie for
   at most 400 days, so a longer timeout wouldn't last any longer.
 
-A new run starts a new Splunk, so you log in once per run.
+Splunk forgets every session when it restarts, so you still log in after each start and each
+`docker compose restart`.
+
+`docker/splunk.yml` also turns off the tour that Splunk offers the first time you open the Search
+page. `viewed = 1` in `[search-tour]` of `ui-tour.conf` is what Splunk saves after you skip or
+finish the tour.
 
 ## Forwarders
 
