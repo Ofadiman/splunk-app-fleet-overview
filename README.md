@@ -5,17 +5,17 @@ It started from `npx @splunk/create --mode=standalone` and adds the Splunk app p
 
 ## Prerequisites
 
-- Node.js 22 or higher
-- pnpm 11 (pinned in `package.json` under `packageManager`)
+- [mise](https://mise.jdx.dev). It installs the versions pinned in `mise.toml`: Node.js (latest
+  LTS), pnpm, and the AppInspect tooling (Python, uv, jq and libmagic).
 - Docker, for the local Splunk instance
-- [mise](https://mise.jdx.dev), for the AppInspect tooling (Python, uv, jq and libmagic, pinned in
-  `mise.toml`)
 
 ## Getting started
 
-1. Install dependencies:
+1. Install the pinned tools and the dependencies (run `mise trust` first if mise asks you to trust
+   `mise.toml`):
 
     ```bash
+    mise install
     pnpm install
     ```
 
@@ -71,17 +71,11 @@ Run `pnpm dev` to rebuild `stage/` on every change, then refresh the page in Spl
 [AppInspect](https://dev.splunk.com/enterprise/docs/developapps/testvalidate/appinspect/) is
 Splunk's validator for app packages. Splunk Cloud and Splunkbase run it on every uploaded app.
 
-1. Install the pinned tools once (run `mise trust` first if mise asks you to trust `mise.toml`):
+With the tools from `mise install` in place, package and validate the app:
 
-    ```bash
-    mise install
-    ```
-
-2. Package and validate the app:
-
-    ```bash
-    mise run appinspect
-    ```
+```bash
+mise run appinspect
+```
 
 The task builds `dist/fleet_overview.tar.gz`, creates `.venv/` from `uv.lock` if needed, and writes
 the full report to `dist/appinspect.json`. It prints failures, errors and warnings, and fails if
@@ -99,7 +93,7 @@ AppInspect reports any failure or error.
 ```
 .
 ├── compose.yaml                 Local Splunk with stage/ mounted as the fleet_overview app
-├── mise.toml                    Pinned AppInspect tooling and the appinspect task
+├── mise.toml                    Pinned tools (Node.js, pnpm, AppInspect tooling), appinspect task
 ├── pyproject.toml, uv.lock      AppInspect and its locked Python dependencies
 ├── uv.toml                      uv settings for this repository: public PyPI, mise's Python
 ├── scripts/
