@@ -5,6 +5,7 @@ import {
     SplunkThemeProvider,
     unstable_splunk1cdThemeCustomizer as splunk1cdThemeCustomizer,
 } from '@splunk/themes';
+import { GlobalStyles } from './GlobalStyles';
 
 export const renderPage = (page: ReactElement, pageTitle: string) => {
     getUserTheme()
@@ -16,6 +17,7 @@ export const renderPage = (page: ReactElement, pageTitle: string) => {
                     density="comfortable"
                     customizeTheme={splunk1cdThemeCustomizer}
                 >
+                    <GlobalStyles />
                     {page}
                 </SplunkThemeProvider>,
                 { pageTitle, theme, navLayout: 'auto', hideAppBar: true },

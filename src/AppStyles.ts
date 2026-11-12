@@ -7,7 +7,7 @@ export const StyledPage = styled.main`
     display: flex;
     align-items: center;
     justify-content: center;
-    min-height: 100dvh;
+    min-height: 100%;
     background-color: ${variables.backgroundColorPage};
 `;
 

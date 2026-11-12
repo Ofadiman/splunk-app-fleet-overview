@@ -252,6 +252,11 @@ that lists the views from the nav file. The Splunk bar stays. Links between page
 of the page content. The nav file still sets the page that opens at `/app/fleet_overview/`, through
 `default="true"`.
 
+`renderPage` also renders `GlobalStyles` from `src/GlobalStyles.ts`. It makes the area below
+the Splunk bar fill the rest of the window. To fill that area, give the outermost element of a page
+`min-height: 100%`, not `100vh` or `100dvh`: those add the height of the Splunk bar, so the page
+scrolls even when its content fits. The area grows with the content, and the whole page scrolls.
+
 To add a page:
 
 1. Create `src/pages/<name>/index.tsx` that calls `renderPage` with the page content and title.
