@@ -18,6 +18,12 @@ splunk:
         content:
           search-tour:
             viewed: "1"
+    - key: user-prefs
+      value:
+        content:
+          general:
+            dismissedInstrumentationOptInVersion: "4"
+            hideInstrumentationOptInModal: "1"
     - key: restmap
       value:
         content:

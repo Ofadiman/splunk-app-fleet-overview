@@ -76,6 +76,20 @@ Splunk forgets every session when it restarts, so you still log in after each st
 page. `viewed = 1` in `[search-tour]` of `ui-tour.conf` is what Splunk saves after you skip or
 finish the tour.
 
+It also hides the "Helping You Get More Value from Splunk Software" window that Splunk shows after
+the first login. `[general]` of `user-prefs.conf` holds the two settings Splunk saves when you
+close it, and both are needed:
+
+- `dismissedInstrumentationOptInVersion = 4` hides it on the Search page and the other classic
+  pages. It must be at least `optInVersion` in `telemetry.conf` of the `splunk_instrumentation`
+  app, which is `4` in Splunk 10.6.1.1. If a newer Splunk raises `optInVersion`, the window comes
+  back until you raise this value too.
+- `hideInstrumentationOptInModal = 1` hides it on the launcher home page.
+
+Hiding the window doesn't turn off telemetry. `sendAnonymizedUsage`, `sendLicenseUsage` and
+`sendAnonymizedWebAnalytics` in `telemetry.conf` stay `true`, the same as after you close the
+window.
+
 ## Forwarders
 
 `compose.yaml` also starts five universal forwarders, one per version, built from the
