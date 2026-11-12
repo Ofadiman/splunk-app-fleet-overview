@@ -152,8 +152,15 @@ server rejects a forwarder with a different key, or with no key, and logs
 
 Run `pnpm dev` to rebuild `fleet_overview/` on every change, then refresh the page in Splunk.
 
-- Splunk caches static files. If the browser keeps the old JavaScript, open
-  `http://localhost:18000/en-US/_bump` and press the button to clear the cache.
+- Splunk doesn't cache static files, so a normal refresh loads the new JavaScript.
+  `docker/splunk.yml` sets three settings in `[settings]` of `web.conf`, and each one is needed:
+    - `cacheEntriesLimit = 0` turns off the copy of static files that splunkd keeps in memory.
+      Without it, splunkd keeps serving the old file, with headers that cache it for a year.
+    - `use_future_expires = false` stops Splunk from sending headers that cache static files for a
+      year.
+    - `replyHeader.Cache-Control = no-store` adds a header that tells the browser not to store any
+      response. Without it, static files have no caching headers, and the browser can choose to
+      cache them anyway.
 - Splunk reads `.conf` and view files at startup. After changing files in `splunk/`, run
   `pnpm build` and `docker compose restart`.
 
@@ -196,7 +203,7 @@ AppInspect reports any failure or error.
 ├── compose.yaml                 Local Splunk with fleet_overview/ mounted as the app, and forwarders
 ├── Dockerfile                   splunk and splunkforwarder targets: environment and settings files
 ├── docker/
-│   ├── splunk.yml               Splunk settings: deployment pass4SymmKey, required authentication
+│   ├── splunk.yml               Splunk settings: deployment key and authentication, sessions, popups, caching
 │   └── splunkforwarder.yml      Forwarder settings: names, deployment server, the same pass4SymmKey
 ├── .dockerignore                Keeps everything but docker/*.yml out of the Docker build
 ├── mise.toml                    Pinned tools (Node.js, pnpm, AppInspect tooling), appinspect task

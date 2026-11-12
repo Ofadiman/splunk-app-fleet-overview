@@ -13,6 +13,9 @@ splunk:
           settings:
             tools.sessions.timeout: "525600"
             ui_inactivity_timeout: "0"
+            use_future_expires: "false"
+            replyHeader.Cache-Control: no-store
+            cacheEntriesLimit: "0"
     - key: ui-tour
       value:
         content:
