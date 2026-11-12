@@ -117,10 +117,14 @@ AppInspect reports any failure or error.
 │   ├── default/app.conf
 │   ├── default/data/ui/nav/default.xml
 │   ├── default/data/ui/views/overview.xml
+│   ├── default/data/ui/views/agents.xml
 │   └── metadata/default.meta
 └── src/
-    ├── pages/overview/index.tsx Page entry: 1CD theme and the Splunk header via @splunk/react-page
-    ├── App.tsx                  Page content
+    ├── renderPage.tsx           Renders a page with the 1CD theme and the Splunk header via @splunk/react-page
+    ├── pages/overview/index.tsx Overview page entry
+    ├── pages/agents/index.tsx   Agents page entry
+    ├── App.tsx                  Overview page content
+    ├── Agents.tsx               Agents page content
     └── tests/                   Vitest tests
 ```
 
@@ -132,7 +136,7 @@ Each view uses Splunk's built-in `pages/splunk_ui_app.html` template. That templ
 
 To add a page:
 
-1. Create `src/pages/<name>/index.tsx`.
+1. Create `src/pages/<name>/index.tsx` that calls `renderPage` with the page content and title.
 2. Create `splunk/default/data/ui/views/<name>.xml` with `template="pages/splunk_ui_app.html"`.
 3. Add `<view name="<name>" />` to `splunk/default/data/ui/nav/default.xml`.
 
