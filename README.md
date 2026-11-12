@@ -75,9 +75,6 @@ Run `pnpm dev` to rebuild `fleet_overview/` on every change, then refresh the pa
 - `pnpm package` - Build and create `dist/fleet_overview.tar.gz`, installable in Splunk
 - `pnpm test` - Run tests once
 - `pnpm test:watch` - Run tests in watch mode
-- `pnpm lint` - Run ESLint and Stylelint checks
-- `pnpm eslint` / `pnpm eslint:fix` - Run ESLint, optionally fixing issues
-- `pnpm stylelint` - Run Stylelint on source files
 - `pnpm format` / `pnpm format:verify` - Format code with Prettier, or check formatting
 - `mise run appinspect` - Package the app and validate it with Splunk AppInspect
 
