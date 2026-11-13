@@ -303,6 +303,11 @@ only remaining job is to set the page that opens at `/app/fleet_overview/`. With
 Splunk uses its system nav and opens the Search page there. Views load by their URL whether or not
 the nav file lists them.
 
+`show_in_nav = false` in `[ui]` of `splunk/default/app.conf` keeps the app out of the app list on
+the Splunk home page and out of the **Apps** menu in the Splunk bar. The app stays visible
+(`is_visible = true`), so its pages still open by URL, such as `/app/fleet_overview/overview`.
+With `is_visible = false`, Splunk would not open the app's pages at all.
+
 For links between pages, use `RouterLink` from `src/components/RouterLink/RouterLink.tsx`, such as
 `<RouterLink to="/agents">Agents</RouterLink>`. It renders a Splunk UI `Link`, but the router opens
 the page without loading it from Splunk again, and `to` only accepts the paths of existing routes.
