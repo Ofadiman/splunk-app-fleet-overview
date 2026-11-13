@@ -240,6 +240,10 @@ AppInspect reports any failure or error.
     ├── renderPage.tsx           Renders a page with the 1CD theme and the Splunk header via @splunk/react-page
     ├── GlobalStyles.ts          Makes the area below the Splunk bar fill the window
     ├── globals.d.ts             Type of __VIEW_LABELS__, the view labels that the build passes in
+    ├── components/
+    │   └── RouterLink/          Splunk UI Link that opens pages through the router
+    ├── testing/
+    │   └── renderWithRouter.tsx Renders pages in tests with a router and an in-memory URL
     └── pages/
         ├── overview/            Overview page: Overview.tsx, its styles, and test
         └── agents/              Agents page: Agents.tsx, its styles, and test
@@ -294,6 +298,16 @@ of the page content. The nav file lists only the overview view, with `default="t
 only remaining job is to set the page that opens at `/app/fleet_overview/`. Without the file,
 Splunk uses its system nav and opens the Search page there. Views load by their URL whether or not
 the nav file lists them.
+
+For links between pages, use `RouterLink` from `src/components/RouterLink/RouterLink.tsx`, such as
+`<RouterLink to="/agents">Agents</RouterLink>`. It renders a Splunk UI `Link`, but the router opens
+the page without loading it from Splunk again, and `to` only accepts the paths of existing routes.
+The link's `href` includes the base path, so opening it in a new tab works too. A Splunk UI `Link`
+with `to` would make Splunk send the whole page again.
+
+Tests of a page or a component with router links need a router. `renderWithRouter` from
+`src/testing/renderWithRouter.tsx` renders the given pages under their paths, starting at the
+given path, with the URL kept in memory.
 
 `renderPage` also renders `GlobalStyles` from `src/GlobalStyles.ts`. It makes the area below
 the Splunk bar fill the rest of the window. To fill that area, give the outermost element of a page
