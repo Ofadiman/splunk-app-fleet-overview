@@ -224,7 +224,7 @@ AppInspect reports any failure or error.
 ├── pyproject.toml, uv.lock      AppInspect and its locked Python dependencies
 ├── uv.toml                      uv settings for this repository: public PyPI, mise's Python
 ├── scripts/
-│   ├── build-pages.mjs          Builds each .tsx file in src/pages into its own page script
+│   ├── build-pages.mjs          Builds src/main.tsx into one page script per Splunk view
 │   └── package-app.mjs          Packs fleet_overview/ into dist/fleet_overview.tar.gz
 ├── splunk/                      Splunk app files, copied as-is into fleet_overview/
 │   ├── default/app.conf
@@ -232,21 +232,26 @@ AppInspect reports any failure or error.
 │   ├── default/data/ui/views/overview.xml
 │   ├── default/data/ui/views/agents.xml
 │   └── metadata/default.meta
+├── AGENTS.md                    Conventions for coding agents: React component architecture
 └── src/
-    ├── renderPage.tsx           Renders a page with the 1CD theme and the Splunk header via @splunk/react-page
+    ├── main.tsx                 The page script for every view: renders the router
     ├── router.tsx               TanStack Router routes, one per Splunk view, and the page title
-    ├── pages/overview.tsx       Script for the overview view: renders the router
-    ├── pages/agents.tsx         Script for the agents view: renders the router
-    ├── App.tsx                  Overview page content
-    ├── Agents.tsx               Agents page content
-    └── tests/                   Vitest tests
+    ├── renderPage.tsx           Renders a page with the 1CD theme and the Splunk header via @splunk/react-page
+    ├── GlobalStyles.ts          Makes the area below the Splunk bar fill the window
+    └── pages/
+        ├── overview/            Overview page: Overview.tsx, its styles, and test
+        └── agents/              Agents page: Agents.tsx, its styles, and test
 ```
+
+Each component follows the file conventions in `AGENTS.md`: `Component.tsx`,
+`Component.styles.ts`, `Component.test.tsx`, and the other files it needs.
 
 ## How pages work
 
 Each view uses Splunk's built-in `pages/splunk_ui_app.html` template. That template loads
-`appserver/static/pages/<view name>.js` from the app as a classic script, so every `.tsx` file in
-`src/pages/` is built separately into one self-contained script named after the file.
+`appserver/static/pages/<view name>.js` from the app as a classic script. `scripts/build-pages.mjs`
+reads the view names from `splunk/default/data/ui/views/` and builds `src/main.tsx` once for each,
+into a self-contained script named after the view.
 
 Every page script renders the same app: the TanStack Router router from `src/router.tsx`. The router
 picks the page from the URL, so moving between pages inside the app doesn't reload the page. Each
@@ -277,9 +282,10 @@ scrolls even when its content fits. The area grows with the content, and the who
 
 To add a page:
 
-1. Add a route with `path: '/<name>'` and `staticData: { title: '<title>' }` to `src/router.tsx`.
-2. Create `src/pages/<name>.tsx` with the same content as the other page scripts.
+1. Create the page component in `src/pages/<name>/`, following the conventions in `AGENTS.md`.
+2. Add a route with `path: '/<name>'` and `staticData: { title: '<title>' }` to `src/router.tsx`.
 3. Create `splunk/default/data/ui/views/<name>.xml` with `template="pages/splunk_ui_app.html"`.
+   The build creates the page script for it.
 4. Add `<view name="<name>" />` to `splunk/default/data/ui/nav/default.xml`.
 
 ## Theme

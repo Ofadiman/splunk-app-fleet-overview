@@ -8,8 +8,8 @@ import {
 } from '@tanstack/react-router';
 import { app } from '@splunk/splunk-utils/config';
 import { createURL } from '@splunk/splunk-utils/url';
-import Agents from './Agents';
-import App from './App';
+import Agents from './pages/agents/Agents';
+import Overview from './pages/overview/Overview';
 
 declare module '@tanstack/react-router' {
     interface Register {
@@ -52,7 +52,7 @@ const overviewRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: '/overview',
     staticData: { title: 'Overview' },
-    component: App,
+    component: Overview,
 });
 
 const agentsRoute = createRoute({

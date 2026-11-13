@@ -1,10 +1,10 @@
 import { render, screen } from '@testing-library/react';
 import { describe, it, expect } from 'vitest';
-import App from '../App';
+import Overview from './Overview';
 
-describe('App', () => {
+describe('Overview', () => {
     it('renders the app name', () => {
-        render(<App />);
+        render(<Overview />);
         expect(screen.getByRole('heading', { name: /fleet-overview/i })).toBeInTheDocument();
     });
 });

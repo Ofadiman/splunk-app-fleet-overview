@@ -1,7 +1,6 @@
 import styled from 'styled-components';
 import { variables } from '@splunk/themes';
 import Heading from '@splunk/react-ui/Heading';
-import SplunkUiLogo from './SplunkUiLogo';
 
 export const StyledPage = styled.main`
     display: flex;
@@ -21,8 +20,4 @@ export const StyledContent = styled.div`
 
 export const StyledHeading = styled(Heading)`
     font-size: clamp(36px, 8vw, 68px);
-`;
-
-export const StyledLogo = styled(SplunkUiLogo)`
-    color: ${variables.contentColorActive};
 `;

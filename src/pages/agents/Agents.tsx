@@ -1,7 +1,7 @@
 import Heading from '@splunk/react-ui/Heading';
 import SpotLight from '@splunk/react-ui/SpotLight';
 import Typography from '@splunk/react-ui/Typography';
-import { StyledContent, StyledPage } from './AgentsStyles';
+import { StyledContent, StyledPage } from './Agents.styles';
 
 const Agents = () => (
     <StyledPage>

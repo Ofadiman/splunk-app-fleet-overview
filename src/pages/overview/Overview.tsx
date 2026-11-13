@@ -3,12 +3,11 @@ import Link from '@splunk/react-ui/Link';
 import P from '@splunk/react-ui/Paragraph';
 import Typography from '@splunk/react-ui/Typography';
 import Layout from '@splunk/react-ui/Layout';
-import { StyledContent, StyledHeading, StyledLogo, StyledPage } from './AppStyles';
+import { StyledContent, StyledHeading, StyledPage } from './Overview.styles';
 
-const App = () => (
+const Overview = () => (
     <StyledPage>
         <StyledContent>
-            <StyledLogo aria-label="Splunk UI Logo" />
             <Layout>
                 <StyledHeading level={1}>fleet-overview</StyledHeading>
                 <Badge label="v1.0.0" />
@@ -25,4 +24,4 @@ const App = () => (
     </StyledPage>
 );
 
-export default App;
+export default Overview;
