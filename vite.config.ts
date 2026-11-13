@@ -6,7 +6,7 @@ export default defineConfig(({ mode }) => ({
     base: './',
     publicDir: 'splunk',
     build: {
-        outDir: 'fleet_overview',
+        outDir: 'dist/fleet_overview',
         emptyOutDir: false,
         minify: mode !== 'development',
         sourcemap: mode === 'development',

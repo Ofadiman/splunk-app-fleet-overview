@@ -7,7 +7,7 @@ services:
       - 127.0.0.1:18000:8000
       - 127.0.0.1:18089:8089
     volumes:
-      - ./fleet_overview:/opt/splunk/etc/apps/fleet_overview:ro
+      - ./dist/fleet_overview:/opt/splunk/etc/apps/fleet_overview:ro
 
   yennefer:
     build:

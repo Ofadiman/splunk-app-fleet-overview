@@ -19,7 +19,7 @@ It started from `npx @splunk/create --mode=standalone` and adds the Splunk app p
     pnpm install
     ```
 
-2. Build the app once, so `fleet_overview/` exists before the container mounts it:
+2. Build the app once, so `dist/fleet_overview/` exists before the container mounts it:
 
     ```bash
     pnpm build
@@ -162,7 +162,7 @@ server rejects a forwarder with a different key, or with no key, and logs
 
 ## Development
 
-Run `pnpm dev` to rebuild `fleet_overview/` on every change, then refresh the page in Splunk.
+Run `pnpm dev` to rebuild `dist/fleet_overview/` on every change, then refresh the page in Splunk.
 
 - Splunk doesn't cache static files, so a normal refresh loads the new JavaScript.
   `docker/splunk.yml` sets three settings in `[settings]` of `web.conf`, and each one is needed:
@@ -181,13 +181,17 @@ Run `pnpm dev` to rebuild `fleet_overview/` on every change, then refresh the pa
 
 ## Scripts
 
-- `pnpm dev` - Rebuild the app into `fleet_overview/` on every change
-- `pnpm build` - Type-check and build the app into `fleet_overview/`
+- `pnpm dev` - Rebuild the app into `dist/fleet_overview/` on every change
+- `pnpm build` - Type-check and build the app into `dist/fleet_overview/`
 - `pnpm package` - Build and create `dist/fleet_overview.tar.gz`, installable in Splunk
 - `pnpm test` - Run tests once
 - `pnpm test:watch` - Run tests in watch mode
 - `pnpm format` / `pnpm format:verify` - Format code with Prettier, or check formatting
 - `mise run appinspect` - Package the app and validate it with Splunk AppInspect
+
+Everything these scripts generate goes to `dist/`, which git ignores: the app in
+`dist/fleet_overview/`, the package `dist/fleet_overview.tar.gz`, and the AppInspect report
+`dist/appinspect.json`.
 
 ## Validating with AppInspect
 
@@ -215,7 +219,7 @@ AppInspect reports any failure or error.
 
 ```
 .
-├── compose.yaml                 Local Splunk with fleet_overview/ mounted as the app, and forwarders
+├── compose.yaml                 Local Splunk with dist/fleet_overview/ mounted as the app, and forwarders
 ├── Dockerfile                   splunk and splunkforwarder targets: environment and settings files
 ├── docker/
 │   ├── splunk.yml               Splunk settings: deployment auth, sessions, login, popups, telemetry, caching
@@ -226,8 +230,8 @@ AppInspect reports any failure or error.
 ├── uv.toml                      uv settings for this repository: public PyPI, mise's Python
 ├── scripts/                     TypeScript that Node runs directly, type-checked by tsconfig.node.json
 │   ├── build-pages.ts           Builds src/main.tsx into one page script per Splunk view, with the view labels
-│   └── package-app.ts           Packs fleet_overview/ into dist/fleet_overview.tar.gz
-├── splunk/                      Splunk app files, copied as-is into fleet_overview/
+│   └── package-app.ts           Packs dist/fleet_overview/ into dist/fleet_overview.tar.gz
+├── splunk/                      Splunk app files, copied as-is into dist/fleet_overview/
 │   ├── default/app.conf
 │   ├── default/data/ui/nav/default.xml
 │   ├── default/data/ui/views/overview.xml

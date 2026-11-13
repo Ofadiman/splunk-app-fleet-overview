@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { create } from 'tar';
 
 const appId = 'fleet_overview';
-const appDir = fileURLToPath(new URL('../fleet_overview', import.meta.url));
+const appDir = fileURLToPath(new URL('../dist/fleet_overview', import.meta.url));
 const distDir = fileURLToPath(new URL('../dist', import.meta.url));
 const file = `${distDir}/${appId}.tar.gz`;
 

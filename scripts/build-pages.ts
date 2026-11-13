@@ -8,7 +8,7 @@ const watch = process.argv.includes('--watch');
 const root = fileURLToPath(new URL('..', import.meta.url));
 const viewsDir = join(root, 'splunk/default/data/ui/views');
 const entry = join(root, 'src/main.tsx');
-const appDir = join(root, 'fleet_overview');
+const appDir = join(root, 'dist/fleet_overview');
 
 const readLabel = (view: string) => {
     const xml = readFileSync(join(viewsDir, `${view}.xml`), 'utf8');
