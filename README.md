@@ -229,8 +229,8 @@ AppInspect reports any failure or error.
 ├── pyproject.toml, uv.lock      AppInspect and its locked Python dependencies
 ├── uv.toml                      uv settings for this repository: public PyPI, mise's Python
 ├── scripts/                     TypeScript that Node runs directly, type-checked by tsconfig.node.json
-│   ├── build-pages.ts           Builds src/main.tsx into one page script per Splunk view, with the view labels
-│   └── package-app.ts           Packs dist/fleet_overview/ into dist/fleet_overview.tar.gz
+│   ├── build.ts                 Builds src/main.tsx into one page script per Splunk view, with the view labels
+│   └── package.ts               Packs dist/fleet_overview/ into dist/fleet_overview.tar.gz
 ├── splunk/                      Splunk app files, copied as-is into dist/fleet_overview/
 │   ├── default/app.conf
 │   ├── default/data/ui/nav/default.xml
@@ -259,7 +259,7 @@ Each component follows the file conventions in `AGENTS.md`: `Component.tsx`,
 ## How pages work
 
 Each view uses Splunk's built-in `pages/splunk_ui_app.html` template. That template loads
-`appserver/static/pages/<view name>.js` from the app as a classic script. `scripts/build-pages.ts`
+`appserver/static/pages/<view name>.js` from the app as a classic script. `scripts/build.ts`
 reads the view names from `splunk/default/data/ui/views/` and builds `src/main.tsx` once for each,
 into a self-contained script named after the view.
 
@@ -282,7 +282,7 @@ The `<label>` of each view is its page title, and it's the only place where titl
   the right title before any script runs. Without a label, it would show the view name, such as
   `agents`, until the page script changed it.
 - When the router changes the page, Splunk sends nothing, so `setViewTitle` in `src/router.tsx`
-  sets the title. `scripts/build-pages.ts` reads every label and passes them to the bundle as
+  sets the title. `scripts/build.ts` reads every label and passes them to the bundle as
   `__VIEW_LABELS__`, through Vite's `define` option. `setViewTitle` takes the label of the view
   whose name matches the path of the current route. The build fails if a view has no `<label>`.
 
