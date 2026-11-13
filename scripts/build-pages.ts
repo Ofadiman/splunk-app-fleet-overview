@@ -9,10 +9,16 @@ const viewsDir = join(root, 'splunk/default/data/ui/views');
 const entry = join(root, 'src/main.tsx');
 const appDir = join(root, 'fleet_overview');
 
-const xmlEntities = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'" };
+const xmlEntities: Partial<Record<string, string>> = {
+    amp: '&',
+    lt: '<',
+    gt: '>',
+    quot: '"',
+    apos: "'",
+};
 
-const decodeXml = (text) =>
-    text.replace(/&(#x[0-9a-f]+|#[0-9]+|[a-z]+);/gi, (entity, name) => {
+const decodeXml = (text: string) =>
+    text.replace(/&(#x[0-9a-f]+|#[0-9]+|[a-z]+);/gi, (entity: string, name: string) => {
         if (/^#x/i.test(name)) {
             return String.fromCodePoint(parseInt(name.slice(2), 16));
         }
@@ -22,7 +28,7 @@ const decodeXml = (text) =>
         return xmlEntities[name] ?? entity;
     });
 
-const readLabel = (view) => {
+const readLabel = (view: string) => {
     const xml = readFileSync(join(viewsDir, `${view}.xml`), 'utf8');
     const match = /<label>([\s\S]*?)<\/label>/.exec(xml);
     if (!match) {
