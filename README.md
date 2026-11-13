@@ -245,6 +245,7 @@ AppInspect reports any failure or error.
     ├── GlobalStyles.ts          Makes the area below the Splunk bar fill the window
     ├── globals.d.ts             Type of __VIEW_LABELS__, the view labels that the build passes in
     ├── components/
+    │   ├── ConnectedForwardersChart/ Chart of the forwarders that phoned home in each minute
     │   └── RouterLink/          Splunk UI Link that opens pages through the router
     ├── testing/
     │   └── renderWithRouter.tsx Renders pages in tests with a router and an in-memory URL
@@ -329,6 +330,35 @@ To add a page:
 2. Add a route with `path: '/<name>'` to `src/router.tsx`.
 3. Create `splunk/default/data/ui/views/<name>.xml` with `template="pages/splunk_ui_app.html"` and
    a `<label>`, which is the page title. The build creates the page script for it.
+
+## Connected forwarders chart
+
+The overview page shows `ConnectedForwardersChart`, a line chart of how many forwarders phoned home
+to the deployment server in each of the last 60 complete minutes. It runs the search again every
+minute. The deployment server writes one event per phone home to the `_dsphonehome` index, with the
+forwarder's GUID in the indexed field `data.clientId`, so the chart counts distinct GUIDs per minute:
+
+```spl
+| tstats prestats=t dc(data.clientId) where index=_dsphonehome by _time span=1m
+| timechart span=1m dc(data.clientId) AS connected
+| fields - _span
+```
+
+`oneShot` from `@splunk/splunk-utils/search` runs it with `output_mode=json_cols`, which returns the
+`fields` and `columns` that the `Line` chart from `@splunk/visualizations` takes.
+
+- `timechart` fills minutes with no phone homes with `0`, so an outage shows as a drop. When no
+  forwarder phoned home in the whole hour, the search returns no rows, and the card says so instead
+  of drawing a chart.
+- Only roles that can search internal indexes, such as `admin` (`srchIndexesAllowed = *;_*`), see
+  phone homes. For `user` and `power`, the search returns no rows, so they see the same message,
+  which names the index they need.
+- `_dsphonehome` keeps events for 7 days. Locally, it starts empty on every
+  `docker compose up --renew-anon-volumes`.
+- `@splunk/visualizations` is large: it makes every page script about 1.4 MB gzipped, up from about
+  0.2 MB. The build inlines dynamic imports, so lazy loading doesn't split it out.
+- Tests mock `Line`, because jsdom draws nothing. `vitest.setup.ts` stubs `window.matchMedia`, which
+  the chart libraries call when they load.
 
 ## Theme
 

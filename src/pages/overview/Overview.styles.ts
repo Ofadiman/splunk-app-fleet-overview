@@ -17,3 +17,9 @@ export const StyledContent = styled.div`
     gap: ${variables.spacingSmall};
     padding: ${variables.spacingXXLarge} ${variables.spacingXLarge};
 `;
+
+export const StyledCharts = styled.div`
+    display: grid;
+    align-self: stretch;
+    margin-top: ${variables.spacingLarge};
+`;
