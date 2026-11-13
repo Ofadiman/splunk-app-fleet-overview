@@ -7,7 +7,7 @@ import {
 } from '@splunk/themes';
 import { GlobalStyles } from './GlobalStyles';
 
-export const renderPage = (page: ReactElement, pageTitle: string) => {
+export const renderPage = (page: ReactElement) => {
     getUserTheme()
         .then((theme) => {
             layout(
@@ -20,7 +20,7 @@ export const renderPage = (page: ReactElement, pageTitle: string) => {
                     <GlobalStyles />
                     {page}
                 </SplunkThemeProvider>,
-                { pageTitle, theme, navLayout: 'auto', hideAppBar: true },
+                { theme, navLayout: 'auto', hideAppBar: true },
             );
         })
         .catch((error: unknown) => {

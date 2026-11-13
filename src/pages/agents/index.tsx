@@ -1,4 +1,5 @@
-import Agents from '../../Agents';
+import { RouterProvider } from '@tanstack/react-router';
 import { renderPage } from '../../renderPage';
+import { router } from '../../router';
 
-renderPage(<Agents />, 'Agents');
+renderPage(<RouterProvider router={router} />);

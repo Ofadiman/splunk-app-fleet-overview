@@ -1,4 +1,5 @@
-import App from '../../App';
+import { RouterProvider } from '@tanstack/react-router';
 import { renderPage } from '../../renderPage';
+import { router } from '../../router';
 
-renderPage(<App />, 'Overview');
+renderPage(<RouterProvider router={router} />);

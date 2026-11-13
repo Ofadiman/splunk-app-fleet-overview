@@ -234,8 +234,9 @@ AppInspect reports any failure or error.
 │   └── metadata/default.meta
 └── src/
     ├── renderPage.tsx           Renders a page with the 1CD theme and the Splunk header via @splunk/react-page
-    ├── pages/overview/index.tsx Overview page entry
-    ├── pages/agents/index.tsx   Agents page entry
+    ├── router.tsx               TanStack Router routes, one per Splunk view, and the page title
+    ├── pages/overview/index.tsx Script for the overview view: renders the router
+    ├── pages/agents/index.tsx   Script for the agents view: renders the router
     ├── App.tsx                  Overview page content
     ├── Agents.tsx               Agents page content
     └── tests/                   Vitest tests
@@ -246,6 +247,23 @@ AppInspect reports any failure or error.
 Each view uses Splunk's built-in `pages/splunk_ui_app.html` template. That template loads
 `appserver/static/pages/<view name>.js` from the app as a classic script, so every folder in
 `src/pages/` is built separately into one self-contained script named after the folder.
+
+Every page script renders the same app: the TanStack Router router from `src/router.tsx`. The router
+picks the page from the URL, so moving between pages inside the app doesn't reload the page. Each
+route path matches a Splunk view, such as `/agents` for `agents.xml`, because Splunk only serves a
+page at a view's URL, with or without a query string:
+
+- A path with more segments, such as `/agents/123`, shows `{}` or Splunk's 404 page on reload. Put
+  details such as the selected agent in query parameters instead: `/agents?agent=123`.
+- Hash routes, such as `/overview#/agents`, don't survive logging in. Splunk keeps the path and the
+  query string when it sends you back from the login page, but drops the `#` part.
+
+The router's `basepath` comes from `createURL` in `@splunk/splunk-utils/url`. It includes the
+user's locale, such as `/en-US/app/fleet_overview`, and the root path when Splunk Web runs under one.
+
+Each route sets its page title in `staticData.title`, and `PageTitle` in `src/router.tsx` copies it
+to the document title when the route changes. TanStack Router's `HeadContent` doesn't work here: it
+renders a `<title>` element in place, and only React 19 moves such an element into `<head>`.
 
 `renderPage` passes `hideAppBar: true` to `layout`, so pages render without the app bar, the bar
 that lists the views from the nav file. The Splunk bar stays. Links between pages have to be part
@@ -259,9 +277,10 @@ scrolls even when its content fits. The area grows with the content, and the who
 
 To add a page:
 
-1. Create `src/pages/<name>/index.tsx` that calls `renderPage` with the page content and title.
-2. Create `splunk/default/data/ui/views/<name>.xml` with `template="pages/splunk_ui_app.html"`.
-3. Add `<view name="<name>" />` to `splunk/default/data/ui/nav/default.xml`.
+1. Add a route with `path: '/<name>'` and `staticData: { title: '<title>' }` to `src/router.tsx`.
+2. Create `src/pages/<name>/index.tsx` with the same content as the other page scripts.
+3. Create `splunk/default/data/ui/views/<name>.xml` with `template="pages/splunk_ui_app.html"`.
+4. Add `<view name="<name>" />` to `splunk/default/data/ui/nav/default.xml`.
 
 ## Theme
 
