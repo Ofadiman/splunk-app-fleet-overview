@@ -1,6 +1,7 @@
 import { mkdirSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { DOMParser } from '@xmldom/xmldom';
 import { build } from 'vite';
 
 const watch = process.argv.includes('--watch');
@@ -9,32 +10,16 @@ const viewsDir = join(root, 'splunk/default/data/ui/views');
 const entry = join(root, 'src/main.tsx');
 const appDir = join(root, 'fleet_overview');
 
-const xmlEntities: Partial<Record<string, string>> = {
-    amp: '&',
-    lt: '<',
-    gt: '>',
-    quot: '"',
-    apos: "'",
-};
-
-const decodeXml = (text: string) =>
-    text.replace(/&(#x[0-9a-f]+|#[0-9]+|[a-z]+);/gi, (entity: string, name: string) => {
-        if (/^#x/i.test(name)) {
-            return String.fromCodePoint(parseInt(name.slice(2), 16));
-        }
-        if (name.startsWith('#')) {
-            return String.fromCodePoint(Number(name.slice(1)));
-        }
-        return xmlEntities[name] ?? entity;
-    });
-
 const readLabel = (view: string) => {
     const xml = readFileSync(join(viewsDir, `${view}.xml`), 'utf8');
-    const match = /<label>([\s\S]*?)<\/label>/.exec(xml);
-    if (!match) {
+    const root = new DOMParser().parseFromString(xml, 'text/xml').documentElement;
+    const label = [...(root?.childNodes ?? [])]
+        .find((node) => node.nodeName === 'label')
+        ?.textContent?.trim();
+    if (!label) {
         throw new Error(`${view}.xml has no <label>. The label is the page title.`);
     }
-    return decodeXml(match[1].trim());
+    return label;
 };
 
 const views = readdirSync(viewsDir, { withFileTypes: true })
