@@ -1,11 +1,4 @@
-import { useEffect } from 'react';
-import {
-    createRootRoute,
-    createRoute,
-    createRouter,
-    Outlet,
-    useMatches,
-} from '@tanstack/react-router';
+import { createRootRoute, createRoute, createRouter } from '@tanstack/react-router';
 import { app } from '@splunk/splunk-utils/config';
 import { createURL } from '@splunk/splunk-utils/url';
 import Agents from './pages/agents/Agents';
@@ -15,50 +8,31 @@ declare module '@tanstack/react-router' {
     interface Register {
         router: typeof router;
     }
-
-    interface StaticDataRouteOption {
-        title?: string;
-    }
 }
 
-const PageTitle = () => {
-    const title = useMatches({
-        select: (matches) =>
-            matches
-                .map((match) => match.staticData.title)
-                .filter(Boolean)
-                .at(-1),
-    });
+const viewLabels: Partial<Record<string, string>> = __VIEW_LABELS__;
 
-    useEffect(() => {
-        if (title) {
-            document.title = title;
-        }
-    }, [title]);
-
-    return null;
+const setViewTitle = () => {
+    const title = viewLabels[router.state.matches.at(-1)?.fullPath.slice(1) ?? ''];
+    if (title) {
+        document.title = title;
+    }
 };
 
-const RootLayout = () => (
-    <>
-        <PageTitle />
-        <Outlet />
-    </>
-);
-
-const rootRoute = createRootRoute({ component: RootLayout });
+const rootRoute = createRootRoute({
+    onEnter: setViewTitle,
+    onStay: setViewTitle,
+});
 
 const overviewRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: '/overview',
-    staticData: { title: 'Overview' },
     component: Overview,
 });
 
 const agentsRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: '/agents',
-    staticData: { title: 'Agents' },
     component: Agents,
 });
 

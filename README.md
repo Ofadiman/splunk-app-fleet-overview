@@ -176,7 +176,8 @@ Run `pnpm dev` to rebuild `fleet_overview/` on every change, then refresh the pa
 - Splunk reads `.conf`, nav and view files at startup. After changing files in `splunk/`, run
   `pnpm build`, then open `http://localhost:18000/en-US/debug/refresh` and press **Refresh**.
   Splunk reloads the app's views, nav and `app.conf` without restarting, so you stay logged in. If
-  a change still doesn't show up, run `docker compose restart`.
+  a change still doesn't show up, run `docker compose restart`. `pnpm dev` reads the view labels
+  only when it starts, so restart it after changing a `<label>`.
 
 ## Scripts
 
@@ -224,7 +225,7 @@ AppInspect reports any failure or error.
 ├── pyproject.toml, uv.lock      AppInspect and its locked Python dependencies
 ├── uv.toml                      uv settings for this repository: public PyPI, mise's Python
 ├── scripts/
-│   ├── build-pages.mjs          Builds src/main.tsx into one page script per Splunk view
+│   ├── build-pages.mjs          Builds src/main.tsx into one page script per Splunk view, with the view labels
 │   └── package-app.mjs          Packs fleet_overview/ into dist/fleet_overview.tar.gz
 ├── splunk/                      Splunk app files, copied as-is into fleet_overview/
 │   ├── default/app.conf
@@ -238,6 +239,7 @@ AppInspect reports any failure or error.
     ├── router.tsx               TanStack Router routes, one per Splunk view, and the page title
     ├── renderPage.tsx           Renders a page with the 1CD theme and the Splunk header via @splunk/react-page
     ├── GlobalStyles.ts          Makes the area below the Splunk bar fill the window
+    ├── globals.d.ts             Type of __VIEW_LABELS__, the view labels that the build passes in
     └── pages/
         ├── overview/            Overview page: Overview.tsx, its styles, and test
         └── agents/              Agents page: Agents.tsx, its styles, and test
@@ -266,14 +268,32 @@ page at a view's URL, with or without a query string:
 The router's `basepath` comes from `createURL` in `@splunk/splunk-utils/url`. It includes the
 user's locale, such as `/en-US/app/fleet_overview`, and the root path when Splunk Web runs under one.
 
-Each route sets its page title in `staticData.title`, and `PageTitle` in `src/router.tsx` copies it
-to the document title when the route changes. TanStack Router's `HeadContent` doesn't work here: it
-renders a `<title>` element in place, and only React 19 moves such an element into `<head>`.
+The `<label>` of each view is its page title, and it's the only place where titles are written:
+
+- When Splunk sends a page, its template puts the label in the `<title>` element, so the tab shows
+  the right title before any script runs. Without a label, it would show the view name, such as
+  `agents`, until the page script changed it.
+- When the router changes the page, Splunk sends nothing, so `setViewTitle` in `src/router.tsx`
+  sets the title. `scripts/build-pages.mjs` reads every label and passes them to the bundle as
+  `__VIEW_LABELS__`, through Vite's `define` option. `setViewTitle` takes the label of the view
+  whose name matches the path of the current route. The build fails if a view has no `<label>`.
+
+`setViewTitle` runs as the root route's `onEnter` and `onStay`, so it covers every route without
+any code in the routes themselves. The root route is entered once, on the first load, and stays
+matched on every navigation after that. TanStack Router calls these callbacks right after it has
+switched to the new route, before React renders the new page, so the title and the page content
+change in the same frame.
+
+TanStack Router's `head` option and `HeadContent` don't work here on their own. The browser takes
+the title from the first `<title>` element in the document, and that's always the one Splunk's
+template puts in `<head>`.
 
 `renderPage` passes `hideAppBar: true` to `layout`, so pages render without the app bar, the bar
 that lists the views from the nav file. The Splunk bar stays. Links between pages have to be part
-of the page content. The nav file still sets the page that opens at `/app/fleet_overview/`, through
-`default="true"`.
+of the page content. The nav file lists only the overview view, with `default="true"`, because its
+only remaining job is to set the page that opens at `/app/fleet_overview/`. Without the file,
+Splunk uses its system nav and opens the Search page there. Views load by their URL whether or not
+the nav file lists them.
 
 `renderPage` also renders `GlobalStyles` from `src/GlobalStyles.ts`. It makes the area below
 the Splunk bar fill the rest of the window. To fill that area, give the outermost element of a page
@@ -283,10 +303,9 @@ scrolls even when its content fits. The area grows with the content, and the who
 To add a page:
 
 1. Create the page component in `src/pages/<name>/`, following the conventions in `AGENTS.md`.
-2. Add a route with `path: '/<name>'` and `staticData: { title: '<title>' }` to `src/router.tsx`.
-3. Create `splunk/default/data/ui/views/<name>.xml` with `template="pages/splunk_ui_app.html"`.
-   The build creates the page script for it.
-4. Add `<view name="<name>" />` to `splunk/default/data/ui/nav/default.xml`.
+2. Add a route with `path: '/<name>'` to `src/router.tsx`.
+3. Create `splunk/default/data/ui/views/<name>.xml` with `template="pages/splunk_ui_app.html"` and
+   a `<label>`, which is the page title. The build creates the page script for it.
 
 ## Theme
 
