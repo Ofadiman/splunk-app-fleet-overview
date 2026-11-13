@@ -1,5 +1,5 @@
 import { mkdirSync, readdirSync, rmSync } from 'node:fs';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { build } from 'vite';
 
@@ -9,8 +9,8 @@ const pagesDir = join(root, 'src/pages');
 const appDir = join(root, 'fleet_overview');
 
 const pages = readdirSync(pagesDir, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
-    .map((entry) => entry.name);
+    .filter((entry) => entry.isFile() && entry.name.endsWith('.tsx'))
+    .map((entry) => basename(entry.name, '.tsx'));
 
 mkdirSync(appDir, { recursive: true });
 for (const name of readdirSync(appDir)) {
@@ -25,7 +25,7 @@ for (const [index, page] of pages.entries()) {
             copyPublicDir: index === 0,
             watch: watch ? {} : null,
             rollupOptions: {
-                input: { [page]: join(pagesDir, page, 'index.tsx') },
+                input: { [page]: join(pagesDir, `${page}.tsx`) },
             },
         },
     });

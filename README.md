@@ -224,7 +224,7 @@ AppInspect reports any failure or error.
 ├── pyproject.toml, uv.lock      AppInspect and its locked Python dependencies
 ├── uv.toml                      uv settings for this repository: public PyPI, mise's Python
 ├── scripts/
-│   ├── build-pages.mjs          Builds each folder in src/pages into its own page script
+│   ├── build-pages.mjs          Builds each .tsx file in src/pages into its own page script
 │   └── package-app.mjs          Packs fleet_overview/ into dist/fleet_overview.tar.gz
 ├── splunk/                      Splunk app files, copied as-is into fleet_overview/
 │   ├── default/app.conf
@@ -235,8 +235,8 @@ AppInspect reports any failure or error.
 └── src/
     ├── renderPage.tsx           Renders a page with the 1CD theme and the Splunk header via @splunk/react-page
     ├── router.tsx               TanStack Router routes, one per Splunk view, and the page title
-    ├── pages/overview/index.tsx Script for the overview view: renders the router
-    ├── pages/agents/index.tsx   Script for the agents view: renders the router
+    ├── pages/overview.tsx       Script for the overview view: renders the router
+    ├── pages/agents.tsx         Script for the agents view: renders the router
     ├── App.tsx                  Overview page content
     ├── Agents.tsx               Agents page content
     └── tests/                   Vitest tests
@@ -245,8 +245,8 @@ AppInspect reports any failure or error.
 ## How pages work
 
 Each view uses Splunk's built-in `pages/splunk_ui_app.html` template. That template loads
-`appserver/static/pages/<view name>.js` from the app as a classic script, so every folder in
-`src/pages/` is built separately into one self-contained script named after the folder.
+`appserver/static/pages/<view name>.js` from the app as a classic script, so every `.tsx` file in
+`src/pages/` is built separately into one self-contained script named after the file.
 
 Every page script renders the same app: the TanStack Router router from `src/router.tsx`. The router
 picks the page from the URL, so moving between pages inside the app doesn't reload the page. Each
@@ -278,7 +278,7 @@ scrolls even when its content fits. The area grows with the content, and the who
 To add a page:
 
 1. Add a route with `path: '/<name>'` and `staticData: { title: '<title>' }` to `src/router.tsx`.
-2. Create `src/pages/<name>/index.tsx` with the same content as the other page scripts.
+2. Create `src/pages/<name>.tsx` with the same content as the other page scripts.
 3. Create `splunk/default/data/ui/views/<name>.xml` with `template="pages/splunk_ui_app.html"`.
 4. Add `<view name="<name>" />` to `splunk/default/data/ui/nav/default.xml`.
 
