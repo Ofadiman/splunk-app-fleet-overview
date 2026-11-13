@@ -1,7 +1,8 @@
-import { act, render, screen, waitFor } from '@testing-library/react';
+import { act, screen, waitFor } from '@testing-library/react';
 import { oneShot } from '@splunk/splunk-utils/search';
 import Line from '@splunk/visualizations/Line';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { renderWithQueryClient } from '../../testing/renderWithQueryClient';
 import ConnectedForwardersChart from './ConnectedForwardersChart';
 import { REFRESH_INTERVAL_MS } from './ConnectedForwardersChart.constants';
 
@@ -31,7 +32,7 @@ describe('ConnectedForwardersChart', () => {
     it('shows a loading message while the search runs', () => {
         vi.mocked(oneShot).mockReturnValue(new Promise(() => {}));
 
-        render(<ConnectedForwardersChart />);
+        renderWithQueryClient(<ConnectedForwardersChart />);
 
         expect(
             screen.getByRole('heading', { level: 2, name: 'Connected forwarders' }),
@@ -47,7 +48,7 @@ describe('ConnectedForwardersChart', () => {
             ),
         );
 
-        render(<ConnectedForwardersChart />);
+        renderWithQueryClient(<ConnectedForwardersChart />);
 
         await waitFor(() =>
             expect(chartData()).toEqual({
@@ -64,7 +65,7 @@ describe('ConnectedForwardersChart', () => {
     it('tells when no forwarder phoned home', async () => {
         vi.mocked(oneShot).mockResolvedValue({ fields: [], columns: [] });
 
-        render(<ConnectedForwardersChart />);
+        renderWithQueryClient(<ConnectedForwardersChart />);
 
         expect(
             await screen.findByText('No forwarder phoned home in the last 60 minutes'),
@@ -75,23 +76,41 @@ describe('ConnectedForwardersChart', () => {
     it('shows the error when the search fails', async () => {
         vi.mocked(oneShot).mockRejectedValue(new Error('Search job quota exceeded'));
 
-        render(<ConnectedForwardersChart />);
+        renderWithQueryClient(<ConnectedForwardersChart />);
 
         expect(await screen.findByText('Couldn’t load connected forwarders')).toBeInTheDocument();
         expect(screen.getByText('Search job quota exceeded')).toBeInTheDocument();
     });
 
     it('updates the chart every minute', async () => {
-        vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
+        vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'], shouldAdvanceTime: true });
         vi.mocked(oneShot)
             .mockResolvedValueOnce(searchResults(['2026-11-13T10:11:00.000+00:00'], ['5']))
             .mockResolvedValueOnce(searchResults(['2026-11-13T10:12:00.000+00:00'], ['3']));
 
-        render(<ConnectedForwardersChart />);
+        renderWithQueryClient(<ConnectedForwardersChart />);
         await waitFor(() => expect(chartData()?.columns[1]).toEqual(['5']));
 
         await act(() => vi.advanceTimersByTimeAsync(REFRESH_INTERVAL_MS));
 
         await waitFor(() => expect(chartData()?.columns[1]).toEqual(['3']));
+    });
+
+    it('keeps the chart and warns when a refresh fails', async () => {
+        vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'], shouldAdvanceTime: true });
+        vi.mocked(oneShot)
+            .mockResolvedValueOnce(searchResults(['2026-11-13T10:11:00.000+00:00'], ['5']))
+            .mockRejectedValueOnce(new Error('Search job quota exceeded'));
+
+        renderWithQueryClient(<ConnectedForwardersChart />);
+        await waitFor(() => expect(chartData()?.columns[1]).toEqual(['5']));
+
+        await act(() => vi.advanceTimersByTimeAsync(REFRESH_INTERVAL_MS));
+
+        expect(
+            await screen.findByText('Couldn’t refresh connected forwarders'),
+        ).toBeInTheDocument();
+        expect(screen.getByText('Search job quota exceeded')).toBeInTheDocument();
+        expect(chartData()?.columns[1]).toEqual(['5']);
     });
 });

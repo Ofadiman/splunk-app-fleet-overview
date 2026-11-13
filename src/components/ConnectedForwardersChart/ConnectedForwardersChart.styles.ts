@@ -9,3 +9,9 @@ export const StyledLoading = styled.div`
     gap: ${variables.spacingSmall};
     height: ${CHART_HEIGHT}px;
 `;
+
+export const StyledContent = styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: ${variables.spacingMedium};
+`;

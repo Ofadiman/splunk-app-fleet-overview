@@ -7,8 +7,7 @@ import Line from '@splunk/visualizations/Line';
 import { CHART_HEIGHT, TIME_FIELD } from './ConnectedForwardersChart.constants';
 import { useConnectedForwarders } from './ConnectedForwardersChart.hooks';
 import { messages } from './ConnectedForwardersChart.i18n';
-import { StyledLoading } from './ConnectedForwardersChart.styles';
-import type { ChartContentProps } from './ConnectedForwardersChart.types';
+import { StyledContent, StyledLoading } from './ConnectedForwardersChart.styles';
 
 const chartOptions = {
     backgroundColor: 'transparent',
@@ -18,8 +17,10 @@ const chartOptions = {
     yAxisMin: 0,
 };
 
-const ChartContent = ({ state }: ChartContentProps) => {
-    if (state.status === 'loading') {
+const ChartContent = () => {
+    const { data, error, isPending, isLoadingError, isRefetchError } = useConnectedForwarders();
+
+    if (isPending) {
         return (
             <StyledLoading>
                 <WaitSpinner size="medium" screenReaderText={null} />
@@ -28,58 +29,60 @@ const ChartContent = ({ state }: ChartContentProps) => {
         );
     }
 
-    if (state.status === 'error') {
+    if (isLoadingError) {
         return (
             <Message appearance="fill" type="error">
                 <Message.Title>{messages.errorTitle}</Message.Title>
-                <P>{state.message}</P>
-            </Message>
-        );
-    }
-
-    if (state.times.length === 0) {
-        return (
-            <Message appearance="fill" type="info">
-                <Message.Title>{messages.emptyTitle}</Message.Title>
-                <P>{messages.emptyDescription}</P>
+                <P>{error.message}</P>
             </Message>
         );
     }
 
     return (
-        <Line
-            mode="view"
-            width="100%"
-            height={CHART_HEIGHT}
-            options={chartOptions}
-            dataSources={{
-                primary: {
-                    requestParams: {},
-                    meta: {},
-                    data: {
-                        fields: [TIME_FIELD, messages.seriesLabel],
-                        columns: [state.times, state.counts],
-                    },
-                },
-            }}
+        <StyledContent>
+            {isRefetchError && (
+                <Message appearance="fill" type="warning">
+                    <Message.Title>{messages.refreshErrorTitle}</Message.Title>
+                    <P>{error.message}</P>
+                </Message>
+            )}
+            {data.times.length === 0 ? (
+                <Message appearance="fill" type="info">
+                    <Message.Title>{messages.emptyTitle}</Message.Title>
+                    <P>{messages.emptyDescription}</P>
+                </Message>
+            ) : (
+                <Line
+                    mode="view"
+                    width="100%"
+                    height={CHART_HEIGHT}
+                    options={chartOptions}
+                    dataSources={{
+                        primary: {
+                            requestParams: {},
+                            meta: {},
+                            data: {
+                                fields: [TIME_FIELD, messages.seriesLabel],
+                                columns: [data.times, data.counts],
+                            },
+                        },
+                    }}
+                />
+            )}
+        </StyledContent>
+    );
+};
+
+const ConnectedForwardersChart = () => (
+    <Card>
+        <Card.Header
+            title={<Heading level={2}>{messages.title}</Heading>}
+            subtitle={messages.subtitle}
         />
-    );
-};
-
-const ConnectedForwardersChart = () => {
-    const state = useConnectedForwarders();
-
-    return (
-        <Card>
-            <Card.Header
-                title={<Heading level={2}>{messages.title}</Heading>}
-                subtitle={messages.subtitle}
-            />
-            <Card.Body>
-                <ChartContent state={state} />
-            </Card.Body>
-        </Card>
-    );
-};
+        <Card.Body>
+            <ChartContent />
+        </Card.Body>
+    </Card>
+);
 
 export default ConnectedForwardersChart;

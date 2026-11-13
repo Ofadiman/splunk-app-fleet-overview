@@ -239,7 +239,7 @@ AppInspect reports any failure or error.
 │   └── metadata/default.meta
 ├── AGENTS.md                    Conventions for coding agents: React component architecture
 └── src/
-    ├── main.tsx                 The page script for every view: renders the router
+    ├── main.tsx                 The page script for every view: renders the router and the query client
     ├── router.tsx               TanStack Router routes, one per Splunk view, and the page title
     ├── renderPage.tsx           Renders a page with the 1CD theme and the Splunk header via @splunk/react-page
     ├── GlobalStyles.ts          Makes the area below the Splunk bar fill the window
@@ -248,7 +248,8 @@ AppInspect reports any failure or error.
     │   ├── ConnectedForwardersChart/ Chart of the forwarders that phoned home in each minute
     │   └── RouterLink/          Splunk UI Link that opens pages through the router
     ├── testing/
-    │   └── renderWithRouter.tsx Renders pages in tests with a router and an in-memory URL
+    │   ├── renderWithQueryClient.tsx Renders components in tests with a fresh query client
+    │   └── renderWithRouter.tsx Renders pages in tests with a router, an in-memory URL and a query client
     └── pages/
         ├── overview/            Overview page: Overview.tsx, its styles, and test
         └── agents/              Agents page: Agents.tsx, its styles, and test
@@ -331,11 +332,27 @@ To add a page:
 3. Create `splunk/default/data/ui/views/<name>.xml` with `template="pages/splunk_ui_app.html"` and
    a `<label>`, which is the page title. The build creates the page script for it.
 
+## Data fetching
+
+Components fetch data with [TanStack Query](https://tanstack.com/query). `src/main.tsx` creates one
+`QueryClient` and renders the router inside its `QueryClientProvider`, so every page and component
+can use `useQuery`. Put the `queryOptions` and the hook that calls `useQuery` in the component's
+`Component.hooks.ts`.
+
+Route loaders aren't used yet. Add one when a page needs data from its URL, such as an agent from
+`/agents?agent=123`: the loader calls `queryClient.prefetchQuery` or `ensureQueryData` with the same
+`queryOptions`, and the component still reads the data with `useQuery`. Also set
+`defaultPreloadStaleTime: 0` on the router then, so the router's preload cache doesn't serve data
+that TanStack Query considers stale.
+
+Tests need a query client too. `renderWithRouter` provides one, and `renderWithQueryClient` from
+`src/testing/renderWithQueryClient.tsx` renders a single component with one. Each test gets a fresh
+client with retries turned off, so a failing request shows its error right away.
+
 ## Connected forwarders chart
 
 The overview page shows `ConnectedForwardersChart`, a line chart of how many forwarders phoned home
-to the deployment server in each of the last 60 complete minutes. It runs the search again every
-minute. The deployment server writes one event per phone home to the `_dsphonehome` index, with the
+to the deployment server in each of the last 60 complete minutes. The deployment server writes one event per phone home to the `_dsphonehome` index, with the
 forwarder's GUID in the indexed field `data.clientId`, so the chart counts distinct GUIDs per minute:
 
 ```spl
@@ -344,8 +361,16 @@ forwarder's GUID in the indexed field `data.clientId`, so the chart counts disti
 | fields - _span
 ```
 
-`oneShot` from `@splunk/splunk-utils/search` runs it with `output_mode=json_cols`, which returns the
-`fields` and `columns` that the `Line` chart from `@splunk/visualizations` takes.
+`useConnectedForwarders` in `ConnectedForwardersChart.hooks.ts` runs it through TanStack Query with
+`oneShot` from `@splunk/splunk-utils/search`, and `output_mode=json_cols` returns the `fields` and
+`columns` that the `Line` chart from `@splunk/visualizations` takes. TanStack Query decides when it
+runs:
+
+- It runs the search again every minute (`refetchInterval`), but not while the tab is hidden, and
+  right away when the tab becomes visible again.
+- It retries a failed search three times, about 7 seconds in total, before the card shows the error.
+- When a refresh fails, the card keeps the last chart and shows a warning above it, until a later
+  refresh succeeds.
 
 - `timechart` fills minutes with no phone homes with `0`, so an outage shows as a drop. When no
   forwarder phoned home in the whole hour, the search returns no rows, and the card says so instead
@@ -359,6 +384,9 @@ forwarder's GUID in the indexed field `data.clientId`, so the chart counts disti
   0.2 MB. The build inlines dynamic imports, so lazy loading doesn't split it out.
 - Tests mock `Line`, because jsdom draws nothing. `vitest.setup.ts` stubs `window.matchMedia`, which
   the chart libraries call when they load.
+- The refresh tests fake only `setInterval`, with `shouldAdvanceTime: true`. Testing Library's
+  `waitFor` also polls with `setInterval`, and without `shouldAdvanceTime` it would only check again
+  when the DOM changes.
 
 ## Theme
 

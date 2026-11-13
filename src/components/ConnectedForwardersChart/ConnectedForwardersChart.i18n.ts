@@ -6,6 +6,7 @@ export const messages = {
     seriesLabel: _('Connected forwarders'),
     loading: _('Loading connected forwarders'),
     errorTitle: _('Couldn’t load connected forwarders'),
+    refreshErrorTitle: _('Couldn’t refresh connected forwarders'),
     emptyTitle: _('No forwarder phoned home in the last 60 minutes'),
     emptyDescription: _(
         'To see phone homes, you need a role that can search the _dsphonehome index, such as admin.',

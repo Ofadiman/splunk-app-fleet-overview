@@ -1,4 +1,5 @@
 import { render } from '@testing-library/react';
+import { QueryClientProvider } from '@tanstack/react-query';
 import {
     createMemoryHistory,
     createRootRoute,
@@ -7,6 +8,7 @@ import {
     RouterProvider,
 } from '@tanstack/react-router';
 import type { RouteComponent } from '@tanstack/react-router';
+import { createTestQueryClient } from './renderWithQueryClient';
 
 export const renderWithRouter = (initialPath: string, pages: Record<string, RouteComponent>) => {
     const rootRoute = createRootRoute();
@@ -20,5 +22,12 @@ export const renderWithRouter = (initialPath: string, pages: Record<string, Rout
         history: createMemoryHistory({ initialEntries: [initialPath] }),
     });
 
-    return { router, ...render(<RouterProvider router={router} />) };
+    return {
+        router,
+        ...render(
+            <QueryClientProvider client={createTestQueryClient()}>
+                <RouterProvider router={router} />
+            </QueryClientProvider>,
+        ),
+    };
 };

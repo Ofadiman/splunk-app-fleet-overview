@@ -3,11 +3,7 @@ export type SearchResults = {
     columns: string[][];
 };
 
-export type ConnectedForwardersState =
-    | { status: 'loading' }
-    | { status: 'error'; message: string }
-    | { status: 'success'; times: string[]; counts: string[] };
-
-export type ChartContentProps = {
-    state: ConnectedForwardersState;
+export type ConnectedForwarders = {
+    times: string[];
+    counts: string[];
 };
