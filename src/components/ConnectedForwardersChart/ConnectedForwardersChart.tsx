@@ -12,7 +12,7 @@ import Line from '@splunk/visualizations/Line';
 import { CHART_HEIGHT, TIME_FIELD } from './ConnectedForwardersChart.constants';
 import { useConnectedForwarders } from './ConnectedForwardersChart.hooks';
 import { messages } from './ConnectedForwardersChart.i18n';
-import { StyledContent, StyledLoading } from './ConnectedForwardersChart.styles';
+import { StyledLoading } from './ConnectedForwardersChart.styles';
 
 const chartOptions = {
     backgroundColor: 'transparent',
@@ -38,40 +38,34 @@ const ChartError = ({ error, resetErrorBoundary }: FallbackProps) => (
 );
 
 const ChartContent = () => {
-    const { data, error, isRefetchError } = useConnectedForwarders();
+    const { data } = useConnectedForwarders();
+
+    if (data.times.length === 0) {
+        return (
+            <Message appearance="fill" type="info">
+                <Message.Title>{messages.emptyTitle}</Message.Title>
+                <P>{messages.emptyDescription}</P>
+            </Message>
+        );
+    }
 
     return (
-        <StyledContent>
-            {isRefetchError && (
-                <Message appearance="fill" type="warning">
-                    <Message.Title>{messages.refreshErrorTitle}</Message.Title>
-                    <P>{error.message}</P>
-                </Message>
-            )}
-            {data.times.length === 0 ? (
-                <Message appearance="fill" type="info">
-                    <Message.Title>{messages.emptyTitle}</Message.Title>
-                    <P>{messages.emptyDescription}</P>
-                </Message>
-            ) : (
-                <Line
-                    mode="view"
-                    width="100%"
-                    height={CHART_HEIGHT}
-                    options={chartOptions}
-                    dataSources={{
-                        primary: {
-                            requestParams: {},
-                            meta: {},
-                            data: {
-                                fields: [TIME_FIELD, messages.seriesLabel],
-                                columns: [data.times, data.counts],
-                            },
-                        },
-                    }}
-                />
-            )}
-        </StyledContent>
+        <Line
+            mode="view"
+            width="100%"
+            height={CHART_HEIGHT}
+            options={chartOptions}
+            dataSources={{
+                primary: {
+                    requestParams: {},
+                    meta: {},
+                    data: {
+                        fields: [TIME_FIELD, messages.seriesLabel],
+                        columns: [data.times, data.counts],
+                    },
+                },
+            }}
+        />
     );
 };
 

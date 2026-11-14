@@ -1,4 +1,4 @@
-import { act, screen, waitFor } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { oneShot } from '@splunk/splunk-utils/search';
 import Line from '@splunk/visualizations/Line';
@@ -21,13 +21,6 @@ const chartData = () => vi.mocked(Line).mock.lastCall?.[0].dataSources.primary.d
 
 const silenceErrorBoundaryLogs = () => vi.spyOn(console, 'error').mockImplementation(() => {});
 
-const showTabAgainAMinuteLater = () => {
-    vi.setSystemTime(Date.now() + 60_000);
-    act(() => {
-        window.dispatchEvent(new Event('visibilitychange'));
-    });
-};
-
 describe('ConnectedForwardersChart', () => {
     beforeEach(() => {
         vi.mocked(oneShot).mockReset();
@@ -35,7 +28,6 @@ describe('ConnectedForwardersChart', () => {
     });
 
     afterEach(() => {
-        vi.useRealTimers();
         vi.restoreAllMocks();
     });
 
@@ -104,35 +96,5 @@ describe('ConnectedForwardersChart', () => {
 
         await waitFor(() => expect(chartData()?.columns[1]).toEqual(['5']));
         expect(screen.queryByText('Couldn’t load connected forwarders')).not.toBeInTheDocument();
-    });
-
-    it('updates the chart when the tab becomes visible again', async () => {
-        vi.mocked(oneShot)
-            .mockResolvedValueOnce(searchResults(['2026-11-13T10:11:00.000+00:00'], ['5']))
-            .mockResolvedValueOnce(searchResults(['2026-11-13T10:12:00.000+00:00'], ['3']));
-
-        renderWithQueryClient(<ConnectedForwardersChart />);
-        await waitFor(() => expect(chartData()?.columns[1]).toEqual(['5']));
-
-        showTabAgainAMinuteLater();
-
-        await waitFor(() => expect(chartData()?.columns[1]).toEqual(['3']));
-    });
-
-    it('keeps the chart and warns when a refresh fails', async () => {
-        vi.mocked(oneShot)
-            .mockResolvedValueOnce(searchResults(['2026-11-13T10:11:00.000+00:00'], ['5']))
-            .mockRejectedValueOnce(new Error('Search job quota exceeded'));
-
-        renderWithQueryClient(<ConnectedForwardersChart />);
-        await waitFor(() => expect(chartData()?.columns[1]).toEqual(['5']));
-
-        showTabAgainAMinuteLater();
-
-        expect(
-            await screen.findByText('Couldn’t refresh connected forwarders'),
-        ).toBeInTheDocument();
-        expect(screen.getByText('Search job quota exceeded')).toBeInTheDocument();
-        expect(chartData()?.columns[1]).toEqual(['5']);
     });
 });

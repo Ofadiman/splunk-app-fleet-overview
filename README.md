@@ -240,6 +240,7 @@ AppInspect reports any failure or error.
 ├── AGENTS.md                    Conventions for coding agents: React component architecture
 └── src/
     ├── main.tsx                 The page script for every view: renders the router and the query client
+    ├── queryClient.ts           Default options of the query client, shared with the test client
     ├── router.tsx               TanStack Router routes, one per Splunk view, and the page title
     ├── renderPage.tsx           Renders a page with the 1CD theme and the Splunk header via @splunk/react-page
     ├── GlobalStyles.ts          Makes the area below the Splunk bar fill the window
@@ -336,8 +337,10 @@ To add a page:
 
 Components fetch data with [TanStack Query](https://tanstack.com/query). `src/main.tsx` creates one
 `QueryClient` and renders the router inside its `QueryClientProvider`, so every page and component
-can use `useQuery`. Put the `queryOptions` and the hook that calls `useQuery` in the component's
-`Component.hooks.ts`.
+can use `useQuery`. The client takes `queryClientDefaultOptions` from `src/queryClient.ts`: once a
+query has data, it doesn't run again when a component that uses it mounts again, the network
+reconnects, or the tab becomes visible. Mutations don't retry. Put the `queryOptions` and the hook
+that calls `useQuery` in the component's `Component.hooks.ts`.
 
 Route loaders aren't used yet. Add one when a page needs data from its URL, such as an agent from
 `/agents?agent=123`: the loader calls `queryClient.prefetchQuery` or `ensureQueryData` with the same
@@ -347,7 +350,8 @@ that TanStack Query considers stale.
 
 Tests need a query client too. `renderWithRouter` provides one, and `renderWithQueryClient` from
 `src/testing/renderWithQueryClient.tsx` renders a single component with one. Each test gets a fresh
-client with retries turned off, so a failing request shows its error right away.
+client with the same default options and query retries turned off, so a failing request shows its
+error right away.
 
 ## Connected forwarders chart
 
@@ -366,12 +370,12 @@ forwarder's GUID in the indexed field `data.clientId`, so the chart counts disti
 `columns` that the `Line` chart from `@splunk/visualizations` takes. TanStack Query decides when it
 runs:
 
-- It runs the search again when the tab becomes visible again (`refetchOnWindowFocus`), but not on
-  a timer.
+- It runs the search once and doesn't refresh the chart. When you come back to the overview page
+  from another page of the app within 5 minutes, the card shows the same chart without running the
+  search again. After 5 minutes away, TanStack Query drops the cached chart and runs the search
+  again.
 - It retries a failed search three times, about 7 seconds in total, before the card shows the error
   and a Try again button.
-- When a refresh fails, the card keeps the last chart and shows a warning above it, until a later
-  refresh succeeds.
 
 - `timechart` fills minutes with no phone homes with `0`, so an outage shows as a drop. When no
   forwarder phoned home in the whole hour, the search returns no rows, and the card says so instead
@@ -385,9 +389,6 @@ runs:
   0.2 MB. The build inlines dynamic imports, so lazy loading doesn't split it out.
 - Tests mock `Line`, because jsdom draws nothing. `vitest.setup.ts` stubs `window.matchMedia`, which
   the chart libraries call when they load.
-- The refresh tests move the clock a minute ahead and fire `visibilitychange` on `window`, the
-  event TanStack Query listens to for the tab becoming visible. `useSuspenseQuery` treats data as
-  fresh for at least a second, so without the clock change it wouldn't run the search again.
 
 ## Theme
 
