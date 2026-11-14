@@ -1,4 +1,4 @@
-import { queryOptions, useQuery } from '@tanstack/react-query';
+import { queryOptions, useSuspenseQuery } from '@tanstack/react-query';
 import { createFetchInit } from '@splunk/splunk-utils/fetch';
 import { oneShot } from '@splunk/splunk-utils/search';
 import {
@@ -37,4 +37,4 @@ const connectedForwardersQuery = queryOptions({
     refetchInterval: REFRESH_INTERVAL_MS,
 });
 
-export const useConnectedForwarders = () => useQuery(connectedForwardersQuery);
+export const useConnectedForwarders = () => useSuspenseQuery(connectedForwardersQuery);

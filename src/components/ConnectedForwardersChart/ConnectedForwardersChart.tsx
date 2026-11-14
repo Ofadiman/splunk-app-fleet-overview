@@ -1,3 +1,8 @@
+import { Suspense } from 'react';
+import { QueryErrorResetBoundary } from '@tanstack/react-query';
+import { ErrorBoundary, getErrorMessage } from 'react-error-boundary';
+import type { FallbackProps } from 'react-error-boundary';
+import Button from '@splunk/react-ui/Button';
 import Card from '@splunk/react-ui/Card';
 import Heading from '@splunk/react-ui/Heading';
 import Message from '@splunk/react-ui/Message';
@@ -17,26 +22,23 @@ const chartOptions = {
     yAxisMin: 0,
 };
 
+const ChartLoading = () => (
+    <StyledLoading>
+        <WaitSpinner size="medium" screenReaderText={null} />
+        {messages.loading}
+    </StyledLoading>
+);
+
+const ChartError = ({ error, resetErrorBoundary }: FallbackProps) => (
+    <Message appearance="fill" type="error">
+        <Message.Title>{messages.errorTitle}</Message.Title>
+        <P>{getErrorMessage(error)}</P>
+        <Button appearance="secondary" label={messages.retry} onClick={resetErrorBoundary} />
+    </Message>
+);
+
 const ChartContent = () => {
-    const { data, error, isPending, isLoadingError, isRefetchError } = useConnectedForwarders();
-
-    if (isPending) {
-        return (
-            <StyledLoading>
-                <WaitSpinner size="medium" screenReaderText={null} />
-                {messages.loading}
-            </StyledLoading>
-        );
-    }
-
-    if (isLoadingError) {
-        return (
-            <Message appearance="fill" type="error">
-                <Message.Title>{messages.errorTitle}</Message.Title>
-                <P>{error.message}</P>
-            </Message>
-        );
-    }
+    const { data, error, isRefetchError } = useConnectedForwarders();
 
     return (
         <StyledContent>
@@ -80,7 +82,15 @@ const ConnectedForwardersChart = () => (
             subtitle={messages.subtitle}
         />
         <Card.Body>
-            <ChartContent />
+            <QueryErrorResetBoundary>
+                {({ reset }) => (
+                    <ErrorBoundary onReset={reset} FallbackComponent={ChartError}>
+                        <Suspense fallback={<ChartLoading />}>
+                            <ChartContent />
+                        </Suspense>
+                    </ErrorBoundary>
+                )}
+            </QueryErrorResetBoundary>
         </Card.Body>
     </Card>
 );

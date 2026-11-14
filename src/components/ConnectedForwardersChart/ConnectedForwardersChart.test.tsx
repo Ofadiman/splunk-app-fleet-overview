@@ -1,4 +1,5 @@
 import { act, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { oneShot } from '@splunk/splunk-utils/search';
 import Line from '@splunk/visualizations/Line';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -19,6 +20,8 @@ const searchResults = (times: string[], counts: string[]) => ({
 
 const chartData = () => vi.mocked(Line).mock.lastCall?.[0].dataSources.primary.data;
 
+const silenceErrorBoundaryLogs = () => vi.spyOn(console, 'error').mockImplementation(() => {});
+
 describe('ConnectedForwardersChart', () => {
     beforeEach(() => {
         vi.mocked(oneShot).mockReset();
@@ -27,6 +30,7 @@ describe('ConnectedForwardersChart', () => {
 
     afterEach(() => {
         vi.useRealTimers();
+        vi.restoreAllMocks();
     });
 
     it('shows a loading message while the search runs', () => {
@@ -74,12 +78,26 @@ describe('ConnectedForwardersChart', () => {
     });
 
     it('shows the error when the search fails', async () => {
+        silenceErrorBoundaryLogs();
         vi.mocked(oneShot).mockRejectedValue(new Error('Search job quota exceeded'));
 
         renderWithQueryClient(<ConnectedForwardersChart />);
 
         expect(await screen.findByText('Couldn’t load connected forwarders')).toBeInTheDocument();
         expect(screen.getByText('Search job quota exceeded')).toBeInTheDocument();
+    });
+
+    it('runs the search again when you try again after it fails', async () => {
+        silenceErrorBoundaryLogs();
+        vi.mocked(oneShot)
+            .mockRejectedValueOnce(new Error('Search job quota exceeded'))
+            .mockResolvedValueOnce(searchResults(['2026-11-13T10:11:00.000+00:00'], ['5']));
+
+        renderWithQueryClient(<ConnectedForwardersChart />);
+        await userEvent.click(await screen.findByRole('button', { name: 'Try again' }));
+
+        await waitFor(() => expect(chartData()?.columns[1]).toEqual(['5']));
+        expect(screen.queryByText('Couldn’t load connected forwarders')).not.toBeInTheDocument();
     });
 
     it('updates the chart every minute', async () => {
