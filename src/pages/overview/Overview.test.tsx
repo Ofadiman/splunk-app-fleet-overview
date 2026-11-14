@@ -25,6 +25,14 @@ describe('Overview', () => {
         ).toBeInTheDocument();
     });
 
+    it('shows the forwarder reconnects chart', async () => {
+        renderWithRouter('/overview', { '/overview': Overview, '/agents': AgentsPage });
+
+        expect(
+            await screen.findByRole('heading', { level: 2, name: 'Forwarder reconnects' }),
+        ).toBeInTheDocument();
+    });
+
     it('opens the agents page from its link', async () => {
         renderWithRouter('/overview', { '/overview': Overview, '/agents': AgentsPage });
 

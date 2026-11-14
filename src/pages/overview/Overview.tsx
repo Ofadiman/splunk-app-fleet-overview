@@ -1,6 +1,7 @@
 import Heading from '@splunk/react-ui/Heading';
 import SpotLight from '@splunk/react-ui/SpotLight';
 import ConnectedForwardersChart from '../../components/ConnectedForwardersChart/ConnectedForwardersChart';
+import ForwarderReconnectsChart from '../../components/ForwarderReconnectsChart/ForwarderReconnectsChart';
 import RouterLink from '../../components/RouterLink/RouterLink';
 import { StyledCharts, StyledContent, StyledPage } from './Overview.styles';
 
@@ -14,6 +15,7 @@ const Overview = () => (
             </RouterLink>
             <StyledCharts>
                 <ConnectedForwardersChart />
+                <ForwarderReconnectsChart />
             </StyledCharts>
         </StyledContent>
     </StyledPage>

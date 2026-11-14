@@ -247,6 +247,7 @@ AppInspect reports any failure or error.
     ├── globals.d.ts             Type of __VIEW_LABELS__, the view labels that the build passes in
     ├── components/
     │   ├── ConnectedForwardersChart/ Chart of the forwarders that phoned home in each minute
+    │   ├── ForwarderReconnectsChart/ Chart of how many times forwarders connected again in each minute
     │   └── RouterLink/          Splunk UI Link that opens pages through the router
     ├── testing/
     │   ├── renderWithQueryClient.tsx Renders components in tests with a fresh query client
@@ -389,6 +390,36 @@ runs:
   0.2 MB. The build inlines dynamic imports, so lazy loading doesn't split it out.
 - Tests mock `Line`, because jsdom draws nothing. `vitest.setup.ts` stubs `window.matchMedia`, which
   the chart libraries call when they load.
+
+## Forwarder reconnects chart
+
+Below the connected forwarders chart, the overview page shows `ForwarderReconnectsChart`, a column
+chart of how many times forwarders connected to the deployment server again in each of the last 60
+complete minutes. The deployment server writes one event to the `_dsclient` index each time a
+forwarder connects, with the forwarder's GUID, name, version and address, so the chart counts those
+events per minute:
+
+```spl
+| tstats prestats=t count where index=_dsclient by _time span=1m
+| timechart span=1m count AS reconnects
+| fields - _span
+```
+
+`useForwarderReconnects` in `ForwarderReconnectsChart.hooks.ts` runs it the same way as the
+connected forwarders search, with the same caching and retries.
+
+- A forwarder connects again each time its splunkd starts: when you restart the forwarder or its
+  container, when the deployment server installs an app that needs a restart, and when it disables
+  an app. A new forwarder's first connection counts too.
+- After a gap in phone homes, forwarders don't always connect again, so the chart can miss the fleet
+  coming back. The connected forwarders chart still shows it as a rise.
+- Most hours have no reconnects in a small fleet. Then the search returns no rows, and the card says
+  so instead of drawing a chart. The message also names the index, because roles that can't search
+  internal indexes, such as `user` and `power`, get no rows either.
+- Up to 5 reconnects per minute, the y-axis has a mark for every whole number. Above that, the chart
+  spaces the marks itself. Without this, the chart labels small counts in halves, such as 0.5 and 1.5.
+- `_dsclient` keeps events for 60 days.
+- Tests mock `Column`, like the connected forwarders tests mock `Line`.
 
 ## Theme
 

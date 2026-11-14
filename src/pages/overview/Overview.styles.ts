@@ -21,5 +21,6 @@ export const StyledContent = styled.div`
 export const StyledCharts = styled.div`
     display: grid;
     align-self: stretch;
+    gap: ${variables.spacingLarge};
     margin-top: ${variables.spacingLarge};
 `;
