@@ -12,6 +12,4 @@ export const EARLIEST_TIME = '-60m@m';
 
 export const LATEST_TIME = '@m';
 
-export const REFRESH_INTERVAL_MS = 60_000;
-
 export const CHART_HEIGHT = 300;

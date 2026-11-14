@@ -366,9 +366,10 @@ forwarder's GUID in the indexed field `data.clientId`, so the chart counts disti
 `columns` that the `Line` chart from `@splunk/visualizations` takes. TanStack Query decides when it
 runs:
 
-- It runs the search again every minute (`refetchInterval`), but not while the tab is hidden, and
-  right away when the tab becomes visible again.
-- It retries a failed search three times, about 7 seconds in total, before the card shows the error.
+- It runs the search again when the tab becomes visible again (`refetchOnWindowFocus`), but not on
+  a timer.
+- It retries a failed search three times, about 7 seconds in total, before the card shows the error
+  and a Try again button.
 - When a refresh fails, the card keeps the last chart and shows a warning above it, until a later
   refresh succeeds.
 
@@ -384,9 +385,9 @@ runs:
   0.2 MB. The build inlines dynamic imports, so lazy loading doesn't split it out.
 - Tests mock `Line`, because jsdom draws nothing. `vitest.setup.ts` stubs `window.matchMedia`, which
   the chart libraries call when they load.
-- The refresh tests fake only `setInterval`, with `shouldAdvanceTime: true`. Testing Library's
-  `waitFor` also polls with `setInterval`, and without `shouldAdvanceTime` it would only check again
-  when the DOM changes.
+- The refresh tests move the clock a minute ahead and fire `visibilitychange` on `window`, the
+  event TanStack Query listens to for the tab becoming visible. `useSuspenseQuery` treats data as
+  fresh for at least a second, so without the clock change it wouldn't run the search again.
 
 ## Theme
 

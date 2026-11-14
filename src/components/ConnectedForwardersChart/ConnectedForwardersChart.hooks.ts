@@ -6,7 +6,6 @@ import {
     CONNECTED_FORWARDERS_SEARCH,
     EARLIEST_TIME,
     LATEST_TIME,
-    REFRESH_INTERVAL_MS,
     TIME_FIELD,
 } from './ConnectedForwardersChart.constants';
 import type { ConnectedForwarders, SearchResults } from './ConnectedForwardersChart.types';
@@ -34,7 +33,6 @@ const connectedForwardersQuery = queryOptions({
             counts: getColumn(results, CONNECTED_FIELD),
         };
     },
-    refetchInterval: REFRESH_INTERVAL_MS,
 });
 
 export const useConnectedForwarders = () => useSuspenseQuery(connectedForwardersQuery);
