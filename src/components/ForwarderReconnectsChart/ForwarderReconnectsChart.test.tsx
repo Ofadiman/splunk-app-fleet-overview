@@ -79,6 +79,19 @@ describe('ForwarderReconnectsChart', () => {
         await waitFor(() => expect(chartOptions()?.yAxisMajorTickInterval).toBe(1));
     });
 
+    it('marks the y-axis in pairs of reconnects when there are up to ten', async () => {
+        vi.mocked(oneShot).mockResolvedValue(
+            searchResults(
+                ['2026-11-14T18:18:00.000+00:00', '2026-11-14T18:19:00.000+00:00'],
+                ['7', '0'],
+            ),
+        );
+
+        renderWithQueryClient(<ForwarderReconnectsChart />);
+
+        await waitFor(() => expect(chartOptions()?.yAxisMajorTickInterval).toBe(2));
+    });
+
     it('lets the chart space the y-axis marks when there are many reconnects', async () => {
         vi.mocked(oneShot).mockResolvedValue(
             searchResults(

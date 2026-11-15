@@ -14,4 +14,6 @@ export const LATEST_TIME = '@m';
 
 export const CHART_HEIGHT = 300;
 
-export const MAX_COUNT_WITH_UNIT_TICKS = 5;
+export const SMALL_TICK_INTERVALS = [1, 2, 5];
+
+export const MAX_TICKS = 5;

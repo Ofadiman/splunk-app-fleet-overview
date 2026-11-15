@@ -9,14 +9,11 @@ import Message from '@splunk/react-ui/Message';
 import P from '@splunk/react-ui/Paragraph';
 import WaitSpinner from '@splunk/react-ui/WaitSpinner';
 import Column from '@splunk/visualizations/Column';
-import {
-    CHART_HEIGHT,
-    MAX_COUNT_WITH_UNIT_TICKS,
-    TIME_FIELD,
-} from './ForwarderReconnectsChart.constants';
+import { CHART_HEIGHT, TIME_FIELD } from './ForwarderReconnectsChart.constants';
 import { useForwarderReconnects } from './ForwarderReconnectsChart.hooks';
 import { messages } from './ForwarderReconnectsChart.i18n';
 import { StyledLoading } from './ForwarderReconnectsChart.styles';
+import { yAxisTickInterval } from './ForwarderReconnectsChart.utils';
 
 const chartOptions = (counts: string[]) => ({
     backgroundColor: 'transparent',
@@ -24,8 +21,7 @@ const chartOptions = (counts: string[]) => ({
     xAxisTitleVisibility: 'hide',
     yAxisTitleVisibility: 'hide',
     yAxisMin: 0,
-    yAxisMajorTickInterval:
-        Math.max(...counts.map(Number)) <= MAX_COUNT_WITH_UNIT_TICKS ? 1 : 'auto',
+    yAxisMajorTickInterval: yAxisTickInterval(Math.max(...counts.map(Number))),
 });
 
 const ChartLoading = () => (

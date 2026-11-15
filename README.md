@@ -247,6 +247,7 @@ AppInspect reports any failure or error.
     ├── globals.d.ts             Type of __VIEW_LABELS__, the view labels that the build passes in
     ├── components/
     │   ├── ConnectedForwardersChart/ Chart of the forwarders that phoned home in each minute
+    │   ├── DeploymentActivityChart/ Chart of the forwarders that installed, uninstalled or failed an app in each minute
     │   ├── ForwarderReconnectsChart/ Chart of how many times forwarders connected again in each minute
     │   └── RouterLink/          Splunk UI Link that opens pages through the router
     ├── testing/
@@ -416,10 +417,57 @@ connected forwarders search, with the same caching and retries.
 - Most hours have no reconnects in a small fleet. Then the search returns no rows, and the card says
   so instead of drawing a chart. The message also names the index, because roles that can't search
   internal indexes, such as `user` and `power`, get no rows either.
-- Up to 5 reconnects per minute, the y-axis has a mark for every whole number. Above that, the chart
-  spaces the marks itself. Without this, the chart labels small counts in halves, such as 0.5 and 1.5.
+- The y-axis has a mark every 1 reconnect up to 5, every 2 up to 10 and every 5 up to 25. Above that,
+  the chart spaces the marks itself. Without this, it labels small counts in steps such as 0.5 or 2.5.
 - `_dsclient` keeps events for 60 days.
 - Tests mock `Column`, like the connected forwarders tests mock `Line`.
+
+## Deployment activity chart
+
+Below the reconnects chart, the overview page shows `DeploymentActivityChart`, a stacked column chart
+of how many forwarders installed, uninstalled or failed to deploy an app in each of the last 60
+complete minutes. The deployment server writes an event to the `_dsappevent` index for each step of a
+deployment on each forwarder, with `data.action` (`Download`, `Install` or `Uninstall`) and
+`data.result` (`Ok` or `Fail`). The chart counts forwarders, not events:
+
+```spl
+| tstats count where index=_dsappevent by _time span=1m data.clientId data.appName data.action data.result
+| eval downloaded=if('data.action'="Download" AND 'data.result'="Ok", 1, 0)
+| eval installed=if('data.action'="Install" AND 'data.result'="Ok", 1, 0)
+| eval uninstalled=if('data.action'="Uninstall" AND 'data.result'="Ok", 1, 0)
+| eval failed=if('data.result'!="Ok", 1, 0)
+| stats max(downloaded) AS downloaded max(installed) AS installed max(uninstalled) AS uninstalled
+    max(failed) AS failed by _time data.clientId data.appName
+| eval installed=downloaded*installed
+| stats max(installed) AS installed max(uninstalled) AS uninstalled max(failed) AS failed
+    by _time data.clientId
+| timechart span=1m sum(installed) AS installed sum(uninstalled) AS uninstalled sum(failed) AS failed
+| fillnull value=0 installed uninstalled failed
+| fields - _span
+```
+
+`useDeploymentActivity` in `DeploymentActivityChart.hooks.ts` runs it the same way as the other
+chart searches.
+
+- A failed install repeats on every phone home: the forwarder writes a `Download` with `Ok` and an
+  `Install` with `Fail` until someone fixes the problem. Counted as events, one stuck forwarder that
+  phones home every second shows as 60 failures a minute. The chart counts it once.
+- A forwarder counts as installed only when it downloaded and installed the same app in the same
+  minute. Forwarders also write an `Install` with `Ok` and no `Download` for apps they already have:
+  after a reload of the deployment server, after a restart, and when the deployment server disables
+  an app. Those don't change the app, so the chart leaves them out.
+- Any event whose result isn't `Ok` counts as failed.
+- A forwarder can count in more than one series in the same minute, for example when an install
+  fails and then succeeds a few seconds later. The column then adds up to more than the number of
+  forwarders.
+- When no forwarder installed, uninstalled or failed in the whole hour, the card says so instead of
+  drawing a chart, also when the hour only has the events that the chart leaves out. The message
+  also names the index, because roles that can't search internal indexes get no rows.
+- The series colors are the `severityColorNormal`, `severityColorInfo` and `severityColorCritical`
+  tokens of the Prisma theme in the user's color scheme, from `getTheme`. The 1CD theme gives these
+  tokens as `oklch()` colors, and `@splunk/visualizations` draws those as black.
+- The y-axis marks follow the same steps as in the reconnects chart.
+- `_dsappevent` keeps events for 60 days.
 
 ## Theme
 

@@ -33,6 +33,14 @@ describe('Overview', () => {
         ).toBeInTheDocument();
     });
 
+    it('shows the deployment activity chart', async () => {
+        renderWithRouter('/overview', { '/overview': Overview, '/agents': AgentsPage });
+
+        expect(
+            await screen.findByRole('heading', { level: 2, name: 'Deployment activity' }),
+        ).toBeInTheDocument();
+    });
+
     it('opens the agents page from its link', async () => {
         renderWithRouter('/overview', { '/overview': Overview, '/agents': AgentsPage });
 
