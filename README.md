@@ -205,10 +205,11 @@ Then it keeps writing events every second as they happen, until you stop it with
 - Each file holds one UTC day, such as `phonehomes_simulated_2026-11-21.log`. When it starts and
   at midnight UTC, the script deletes the files whose day is older than their index keeps events.
 - When it starts again, the script continues after the newest event in the files, so after a day
-  off it backfills only that day. The events depend only on their time and a fixed seed, so a run
-  that stopped and started again writes the same events as one that never stopped.
-- The first backfill writes about 7.3 GB in about a minute: 1.6 GB of phone homes, 3.7 GB of
-  client events and 2 GB of app events. Splunk stores them in about 3.5 GB.
+  off it backfills only that day. The events depend only on their time, a fixed seed and the time
+  zone, so a run that stopped and started again writes the same events as one that never stopped.
+- The first backfill writes about 4.9 GB in less than a minute: 1.6 GB of phone homes, 1.4 GB of
+  client events and 2 GB of app events. Splunk indexes them in about two and a half minutes and
+  stores them in about 2.5 GB.
 - Each start with `--renew-anon-volumes` gives Splunk empty indexes, and Splunk indexes everything
   in `.simulation/` again as it starts. It finishes about three minutes after `docker compose ps`
   shows `healthy`. `docker compose restart` keeps the indexes, and Splunk carries on where it
@@ -252,15 +253,21 @@ outside the network outage.
 The scenarios repeat every 8 hours, starting at 00:00, 08:00 and 16:00 UTC. Each one lasts an hour,
 and each client takes part at its phone home in that hour:
 
-| Hours (UTC)         | Scenario                  | What happens                                                                                                                                                                                                                               |
-| ------------------- | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 00, 08, 16          | Rollout                   | A new version of `fleet_base` goes to one of the four deployment rings, `fleet_ring_1` to `fleet_ring_4`, the next ring each time. Its about 6,250 clients log `Download`/`Ok` and `Install`/`Ok`.                                         |
-| 01, 09, 17          | Server class removed      | The about 1,250 clients in `fleet_canary` log `Uninstall`/`Ok` for `fleet_canary_inputs`.                                                                                                                                                  |
-| 02–03, 10–11, 18–19 | Failing install           | A new version of `fleet_blocked_inputs` fails on the about 500 clients in `fleet_blocked`. At both phone homes, each one logs `Download`/`Ok`, then `Install`/`Fail` with `Failed to untar archive=…`.                                     |
-| 04, 12, 20          | Install fixed             | The same clients log `Download`/`Ok` and `Install`/`Ok`.                                                                                                                                                                                   |
-| 05, 13, 21          | Deployment server restart | Every client connects again at its phone home and logs a `_dsclient` event, so the reconnects chart shows 400 to 450 a minute.                                                                                                             |
-| 06, 14, 22          | Network outage            | One of the 10 sites, the next one each time, can't reach the deployment server for the first 30 minutes. Its about 2,500 clients skip the phone homes they'd make then, so the connected forwarders line drops to about 355 to 405.        |
-| 07, 15, 23          | Recovery                  | The clients that skipped a phone home connect again at their next one, about 1,250 `_dsclient` events in the first half hour. `fleet_canary` comes back, and its clients log `Download`/`Ok` and `Install`/`Ok` for `fleet_canary_inputs`. |
+| Hours (UTC)         | Scenario             | What happens                                                                                                                                                                                                                               |
+| ------------------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 00, 08, 16          | Rollout              | A new version of `fleet_base` goes to one of the four deployment rings, `fleet_ring_1` to `fleet_ring_4`, the next ring each time. Its about 6,250 clients log `Download`/`Ok` and `Install`/`Ok`.                                         |
+| 01, 09, 17          | Server class removed | The about 1,250 clients in `fleet_canary` log `Uninstall`/`Ok` for `fleet_canary_inputs`.                                                                                                                                                  |
+| 02–03, 10–11, 18–19 | Failing install      | A new version of `fleet_blocked_inputs` fails on the about 500 clients in `fleet_blocked`. At both phone homes, each one logs `Download`/`Ok`, then `Install`/`Fail` with `Failed to untar archive=…`.                                     |
+| 04, 12, 20          | Install fixed        | The same clients log `Download`/`Ok` and `Install`/`Ok`.                                                                                                                                                                                   |
+| 06, 14, 22          | Network outage       | One of the 10 sites, the next one each time, can't reach the deployment server for the first 30 minutes. Its about 2,500 clients skip the phone homes they'd make then, so the connected forwarders line drops to about 355 to 405.        |
+| 07, 15, 23          | Recovery             | The clients that skipped a phone home connect again at their next one, about 1,250 `_dsclient` events in the first half hour. `fleet_canary` comes back, and its clients log `Download`/`Ok` and `Install`/`Ok` for `fleet_canary_inputs`. |
+
+Nothing happens in hours 05, 13 and 21. Once a day, at a random time between 03:00 and 06:00 in the
+time zone of the machine that runs the script, the deployment server restarts. The script prints the
+time zone when it starts, such as `Europe/Warsaw`, and follows its daylight saving time. Every
+client connects again at its next phone home and logs a `_dsclient` event, so for the next hour the
+reconnects chart shows 400 to 450 a minute. If the hour runs into the network outage, the clients
+that skip a phone home connect again in the recovery hour instead.
 
 On top of the scenarios, 40 to 60 random clients restart every hour and log a `_dsclient` event at
 their phone home, about one a minute.

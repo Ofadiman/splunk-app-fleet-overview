@@ -24,6 +24,8 @@ const CANARY_SHARE = 0.05;
 const BLOCKED_SHARE = 0.02;
 const RESTARTS_PER_HOUR = { min: 40, max: 60 };
 const OUTAGE_MINUTES = 30;
+const SERVER_RESTART_HOURS = { min: 3, max: 6 };
+const TIME_ZONE = Temporal.Now.timeZoneId();
 const SPLUNK_URL = 'https://127.0.0.1:18089';
 const SPLUNK_AUTH = 'admin:password';
 const TICK_MS = 1000;
@@ -44,7 +46,7 @@ const schedule = [
     'failingInstall',
     'failingInstall',
     'fixedInstall',
-    'serverRestart',
+    'quiet',
     'outage',
     'recovery',
 ] as const;
@@ -288,6 +290,21 @@ const restartsForHour = (hour: number) => {
     );
 };
 
+const localDayOf = (time: number) =>
+    Temporal.Instant.fromEpochMilliseconds(time).toZonedDateTimeISO(TIME_ZONE).toPlainDate();
+
+const localTime = (day: Temporal.PlainDate, hour: number) =>
+    day.toZonedDateTime({ timeZone: TIME_ZONE, plainTime: Temporal.PlainTime.from({ hour }) })
+        .epochMilliseconds;
+
+const serverRestartTime = (day: Temporal.PlainDate) => {
+    seed(5, day.year, day.month, day.day);
+    return faker.number.int({
+        min: localTime(day, SERVER_RESTART_HOURS.min),
+        max: localTime(day, SERVER_RESTART_HOURS.max) - 1,
+    });
+};
+
 const outageSite = (cycle: number) => cycle % SITE_COUNT;
 
 const missedPhoneHome = (client: Client, slot: number, hour: number) =>
@@ -312,15 +329,35 @@ const eventsForHour = (hour: number, wanted: ReadonlySet<Stream>) => {
 
     if (wanted.has('clients')) {
         const reconnects = new Set(restartsForHour(hour));
+        let previousSlots: number[] | undefined;
+        const slotsBefore = () => (previousSlots ??= slotsForHour(hour - 1));
+        const restarts = new Set(
+            [hour, hour - 1].map((each) => serverRestartTime(localDayOf(each * HOUR))),
+        );
 
-        if (scenario === 'serverRestart') {
-            clients.forEach((_, index) => reconnects.add(index));
+        for (const restartedAt of restarts) {
+            const restartHour = Math.floor(restartedAt / HOUR);
+            if (restartHour === hour) {
+                clients.forEach((_, index) => {
+                    if (slots[index] >= restartedAt) {
+                        reconnects.add(index);
+                    }
+                });
+            }
+            if (restartHour === hour - 1) {
+                const before = slotsBefore();
+                clients.forEach((_, index) => {
+                    if (before[index] < restartedAt) {
+                        reconnects.add(index);
+                    }
+                });
+            }
         }
 
         if (scenario === 'recovery') {
-            const previousSlots = slotsForHour(hour - 1);
+            const before = slotsBefore();
             clients.forEach((client, index) => {
-                if (missedPhoneHome(client, previousSlots[index], hour - 1)) {
+                if (missedPhoneHome(client, before[index], hour - 1)) {
                     reconnects.add(index);
                 }
             });
@@ -550,6 +587,9 @@ const startsAt = (now: number) => byStream((stream) => now - retention[stream]);
 for (const stream of streams) {
     console.log(`${indexes[stream]} keeps events for ${retention[stream] / DAY} days`);
 }
+console.log(
+    `The deployment server restarts once a day between ${pad(SERVER_RESTART_HOURS.min)}:00 and ${pad(SERVER_RESTART_HOURS.max)}:00 ${TIME_ZONE} time`,
+);
 
 const backfillUntil = Date.now();
 const backfillStarts = startsAt(backfillUntil);
