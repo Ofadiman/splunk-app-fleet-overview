@@ -246,7 +246,7 @@ AppInspect reports any failure or error.
     ├── GlobalStyles.ts          Makes the area below the Splunk bar fill the window
     ├── globals.d.ts             Type of __VIEW_LABELS__, the view labels that the build passes in
     ├── components/
-    │   ├── ConnectedForwardersChart/ Chart of the forwarders that phoned home in each minute
+    │   ├── ConnectedForwardersChart/ Chart of the forwarders that phoned home in each minute, with markers
     │   ├── DeploymentActivityChart/ Chart of the forwarders that installed, uninstalled or failed an app in each minute
     │   ├── ForwarderReconnectsChart/ Chart of how many times forwarders connected again in each minute
     │   └── RouterLink/          Splunk UI Link that opens pages through the router
@@ -391,6 +391,24 @@ runs:
   0.2 MB. The build inlines dynamic imports, so lazy loading doesn't split it out.
 - Tests mock `Line`, because jsdom draws nothing. `vitest.setup.ts` stubs `window.matchMedia`, which
   the chart libraries call when they load.
+
+The chart also marks the minutes when something happened that can explain a change in the line. It
+runs no searches of its own for them: `useMarkerSources` reads the results of the deployment activity
+and reconnects searches through the same queries, `deploymentActivityQuery` and
+`forwarderReconnectsQuery`, so the markers match the cards below and each search runs once.
+
+- A minute gets a marker when forwarders installed or uninstalled an app, reconnected, or started
+  failing, which means more forwarders failed in that minute than in the minute before. A forwarder
+  stuck on a failing install gets one marker, in the minute it starts failing.
+- The minute needs at least 1 such forwarder or reconnect for every 100 connected forwarders
+  (`MARKER_MIN_SHARE`). In a small fleet, every change gets a marker. In a fleet of 25,000, where
+  some forwarders restart in most minutes, only bursts of 250 or more do.
+- Hovering a marker shows what happened in that minute, such as `Installed: 5, Failed: 1`. Markers
+  for minutes when forwarders started failing use `severityColorCritical`, and the others use
+  `severityColorUnknown`, both from the Prisma theme, as in the deployment activity chart.
+- The line doesn't wait for these searches. It draws as soon as the phone home search returns, and
+  the markers appear when the other searches do. When one of them fails, its markers are missing and
+  its own card shows the error.
 
 ## Forwarder reconnects chart
 

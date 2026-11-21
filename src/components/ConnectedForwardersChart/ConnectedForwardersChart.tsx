@@ -8,11 +8,19 @@ import Heading from '@splunk/react-ui/Heading';
 import Message from '@splunk/react-ui/Message';
 import P from '@splunk/react-ui/Paragraph';
 import WaitSpinner from '@splunk/react-ui/WaitSpinner';
+import getTheme from '@splunk/themes/getTheme';
+import useSplunkTheme from '@splunk/themes/useSplunkTheme';
 import Line from '@splunk/visualizations/Line';
-import { CHART_HEIGHT, TIME_FIELD } from './ConnectedForwardersChart.constants';
-import { useConnectedForwarders } from './ConnectedForwardersChart.hooks';
+import {
+    CHART_HEIGHT,
+    MARKER_COLOR_FIELD,
+    MARKER_LABEL_FIELD,
+    TIME_FIELD,
+} from './ConnectedForwardersChart.constants';
+import { useConnectedForwarders, useMarkerSources } from './ConnectedForwardersChart.hooks';
 import { messages } from './ConnectedForwardersChart.i18n';
 import { StyledLoading } from './ConnectedForwardersChart.styles';
+import { buildMarkers } from './ConnectedForwardersChart.utils';
 
 const chartOptions = {
     backgroundColor: 'transparent',
@@ -20,6 +28,19 @@ const chartOptions = {
     xAxisTitleVisibility: 'hide',
     yAxisTitleVisibility: 'hide',
     yAxisMin: 0,
+};
+
+const markerOptions = {
+    annotationX: '> annotation|seriesByIndex(0)',
+    annotationLabel: '> annotation|seriesByIndex(1)',
+    annotationColor: '> annotation|seriesByIndex(2)',
+};
+
+const markerLabels = {
+    installed: messages.installedMarker,
+    uninstalled: messages.uninstalledMarker,
+    failed: messages.failedMarker,
+    reconnects: messages.reconnectsMarker,
 };
 
 const ChartLoading = () => (
@@ -39,6 +60,12 @@ const ChartError = ({ error, resetErrorBoundary }: FallbackProps) => (
 
 const ChartContent = () => {
     const { data } = useConnectedForwarders();
+    const { deployments, reconnects } = useMarkerSources();
+    const { colorScheme } = useSplunkTheme();
+    const { severityColorCritical, severityColorUnknown } = getTheme({
+        family: 'prisma',
+        colorScheme,
+    });
 
     if (data.times.length === 0) {
         return (
@@ -49,12 +76,18 @@ const ChartContent = () => {
         );
     }
 
+    const markers = buildMarkers(data, deployments, reconnects, markerLabels, {
+        failure: severityColorCritical,
+        change: severityColorUnknown,
+    });
+    const hasMarkers = markers.times.length > 0;
+
     return (
         <Line
             mode="view"
             width="100%"
             height={CHART_HEIGHT}
-            options={chartOptions}
+            options={hasMarkers ? { ...chartOptions, ...markerOptions } : chartOptions}
             dataSources={{
                 primary: {
                     requestParams: {},
@@ -64,6 +97,16 @@ const ChartContent = () => {
                         columns: [data.times, data.counts],
                     },
                 },
+                ...(hasMarkers && {
+                    annotation: {
+                        requestParams: {},
+                        meta: {},
+                        data: {
+                            fields: [TIME_FIELD, MARKER_LABEL_FIELD, MARKER_COLOR_FIELD],
+                            columns: [markers.times, markers.labels, markers.colors],
+                        },
+                    },
+                }),
             }}
         />
     );

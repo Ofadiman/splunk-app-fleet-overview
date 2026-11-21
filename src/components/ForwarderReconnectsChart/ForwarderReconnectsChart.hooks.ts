@@ -13,7 +13,7 @@ import type { ForwarderReconnects, SearchResults } from './ForwarderReconnectsCh
 const getColumn = ({ fields, columns }: SearchResults, field: string) =>
     columns[fields.indexOf(field)] ?? [];
 
-const forwarderReconnectsQuery = queryOptions({
+export const forwarderReconnectsQuery = queryOptions({
     queryKey: ['forwarder-reconnects'],
     queryFn: async ({ signal }): Promise<ForwarderReconnects> => {
         const results = (await oneShot(

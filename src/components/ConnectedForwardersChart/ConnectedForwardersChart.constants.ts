@@ -13,3 +13,9 @@ export const EARLIEST_TIME = '-60m@m';
 export const LATEST_TIME = '@m';
 
 export const CHART_HEIGHT = 300;
+
+export const MARKER_MIN_SHARE = 0.01;
+
+export const MARKER_LABEL_FIELD = 'label';
+
+export const MARKER_COLOR_FIELD = 'color';

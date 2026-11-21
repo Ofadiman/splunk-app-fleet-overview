@@ -7,6 +7,10 @@ export const messages = {
     loading: _('Loading connected forwarders'),
     errorTitle: _('Couldn’t load connected forwarders'),
     retry: _('Try again'),
+    installedMarker: _('Installed'),
+    uninstalledMarker: _('Uninstalled'),
+    failedMarker: _('Failed'),
+    reconnectsMarker: _('Reconnects'),
     emptyTitle: _('No forwarder phoned home in the last 60 minutes'),
     emptyDescription: _(
         'To see phone homes, you need a role that can search the _dsphonehome index, such as admin.',

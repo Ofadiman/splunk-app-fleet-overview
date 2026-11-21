@@ -15,7 +15,7 @@ import type { DeploymentActivity, SearchResults } from './DeploymentActivityChar
 const getColumn = ({ fields, columns }: SearchResults, field: string) =>
     columns[fields.indexOf(field)] ?? [];
 
-const deploymentActivityQuery = queryOptions({
+export const deploymentActivityQuery = queryOptions({
     queryKey: ['deployment-activity'],
     queryFn: async ({ signal }): Promise<DeploymentActivity> => {
         const results = (await oneShot(
