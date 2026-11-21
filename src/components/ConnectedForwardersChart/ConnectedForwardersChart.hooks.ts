@@ -1,4 +1,4 @@
-import { queryOptions, useQuery, useSuspenseQuery } from '@tanstack/react-query';
+import { queryOptions, useSuspenseQuery } from '@tanstack/react-query';
 import { createFetchInit } from '@splunk/splunk-utils/fetch';
 import { oneShot } from '@splunk/splunk-utils/search';
 import {
@@ -8,8 +8,6 @@ import {
     LATEST_TIME,
     TIME_FIELD,
 } from './ConnectedForwardersChart.constants';
-import { deploymentActivityQuery } from '../DeploymentActivityChart/DeploymentActivityChart.hooks';
-import { forwarderReconnectsQuery } from '../ForwarderReconnectsChart/ForwarderReconnectsChart.hooks';
 import type { ConnectedForwarders, SearchResults } from './ConnectedForwardersChart.types';
 
 const getColumn = ({ fields, columns }: SearchResults, field: string) =>
@@ -38,8 +36,3 @@ const connectedForwardersQuery = queryOptions({
 });
 
 export const useConnectedForwarders = () => useSuspenseQuery(connectedForwardersQuery);
-
-export const useMarkerSources = () => ({
-    deployments: useQuery(deploymentActivityQuery).data,
-    reconnects: useQuery(forwarderReconnectsQuery).data,
-});

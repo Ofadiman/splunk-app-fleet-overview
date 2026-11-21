@@ -263,8 +263,7 @@ and each client takes part at its phone home in that hour:
 | 07, 15, 23          | Recovery                  | The clients that skipped a phone home connect again at their next one, about 1,250 `_dsclient` events in the first half hour. `fleet_canary` comes back, and its clients log `Download`/`Ok` and `Install`/`Ok` for `fleet_canary_inputs`. |
 
 On top of the scenarios, 40 to 60 random clients restart every hour and log a `_dsclient` event at
-their phone home. That's about one a minute, fewer than the 1 per 100 connected forwarders that a
-[marker](#connected-forwarders-chart) needs.
+their phone home, about one a minute.
 
 The script keeps two things simpler than a real deployment server: a client logs its handshake at
 its next phone home rather than right after a restart, and it keeps its place in the hour after it
@@ -364,7 +363,7 @@ AppInspect reports any failure or error.
     ├── GlobalStyles.ts          Makes the area below the Splunk bar fill the window
     ├── globals.d.ts             Type of __VIEW_LABELS__, the view labels that the build passes in
     ├── components/
-    │   ├── ConnectedForwardersChart/ Chart of the forwarders that phoned home in each minute, with markers
+    │   ├── ConnectedForwardersChart/ Chart of the forwarders that phoned home in each minute
     │   ├── DeploymentActivityChart/ Chart of the forwarders that installed, uninstalled or failed an app in each minute
     │   ├── ForwarderReconnectsChart/ Chart of how many times forwarders connected again in each minute
     │   └── RouterLink/          Splunk UI Link that opens pages through the router
@@ -509,24 +508,6 @@ runs:
   0.2 MB. The build inlines dynamic imports, so lazy loading doesn't split it out.
 - Tests mock `Line`, because jsdom draws nothing. `vitest.setup.ts` stubs `window.matchMedia`, which
   the chart libraries call when they load.
-
-The chart also marks the minutes when something happened that can explain a change in the line. It
-runs no searches of its own for them: `useMarkerSources` reads the results of the deployment activity
-and reconnects searches through the same queries, `deploymentActivityQuery` and
-`forwarderReconnectsQuery`, so the markers match the cards below and each search runs once.
-
-- A minute gets a marker when forwarders installed or uninstalled an app, reconnected, or started
-  failing, which means more forwarders failed in that minute than in the minute before. A forwarder
-  stuck on a failing install gets one marker, in the minute it starts failing.
-- The minute needs at least 1 such forwarder or reconnect for every 100 connected forwarders
-  (`MARKER_MIN_SHARE`). In a small fleet, every change gets a marker. In a fleet of 25,000, where
-  some forwarders restart in most minutes, only bursts of 250 or more do.
-- Hovering a marker shows what happened in that minute, such as `Installed: 5, Failed: 1`. Markers
-  for minutes when forwarders started failing use `severityColorCritical`, and the others use
-  `severityColorUnknown`, both from the Prisma theme, as in the deployment activity chart.
-- The line doesn't wait for these searches. It draws as soon as the phone home search returns, and
-  the markers appear when the other searches do. When one of them fails, its markers are missing and
-  its own card shows the error.
 
 ## Forwarder reconnects chart
 
