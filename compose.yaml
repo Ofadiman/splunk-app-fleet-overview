@@ -8,8 +8,10 @@ services:
       - 127.0.0.1:18089:8089
     volumes:
       - ./dist/fleet_overview:/opt/splunk/etc/apps/fleet_overview:ro
+      - ./.simulation:/opt/splunk/var/log/client_events
 
   yennefer:
+    profiles: [forwarders]
     build:
       target: splunkforwarder
       args:
@@ -21,6 +23,7 @@ services:
     hostname: yennefer.splunk.com
 
   ciri:
+    profiles: [forwarders]
     build:
       target: splunkforwarder
       args:
@@ -32,6 +35,7 @@ services:
     hostname: ciri.splunk.com
 
   triss:
+    profiles: [forwarders]
     build:
       target: splunkforwarder
       args:
@@ -43,6 +47,7 @@ services:
     hostname: triss.splunk.com
 
   vesemir:
+    profiles: [forwarders]
     build:
       target: splunkforwarder
       args:
@@ -54,6 +59,7 @@ services:
     hostname: vesemir.splunk.com
 
   dandelion:
+    profiles: [forwarders]
     build:
       target: splunkforwarder
       args:

@@ -25,7 +25,7 @@ It started from `npx @splunk/create --mode=standalone` and adds the Splunk app p
     pnpm build
     ```
 
-3. Start Splunk and the [forwarders](#forwarders):
+3. Start Splunk:
 
     ```bash
     docker compose up --detach --renew-anon-volumes
@@ -40,8 +40,9 @@ It started from `npx @splunk/create --mode=standalone` and adds the Splunk app p
     ```
 
     Bookmark it, because you log in again after every start and restart. Splunk's management port
-    is on `https://localhost:18089`. To start Splunk without the forwarders, add `splunk` to the end
-    of the command.
+    is on `https://localhost:18089`. To also start the [forwarders](#forwarders), add
+    `--profile forwarders` after `docker compose`. To fill Splunk with the events of 25,000
+    forwarders instead, run the [simulated fleet](#simulated-fleet).
 
 4. Stop Splunk and the forwarders, and delete everything they stored:
 
@@ -52,14 +53,18 @@ It started from `npx @splunk/create --mode=standalone` and adds the Splunk app p
 The containers keep no state between runs. Their configuration and data live in unnamed volumes
 that the images themselves declare. `--renew-anon-volumes` replaces them on every start, and
 `--volumes` deletes them on stop, so they don't pile up on disk. `docker compose restart` keeps
-them, so a restart within one run keeps your data.
+them, so a restart within one run keeps your data. The only exception is `.simulation/`, the
+folder of the [simulated fleet](#simulated-fleet), which lives in the repository and stays.
 
 Compose builds every image from a target in `Dockerfile` on the first start:
 
 - `splunk` builds on top of `splunk/splunk`. It sets the environment variables that accept the
   license and set the `admin` password, and copies `docker/splunk.yml` into the image. It also
   creates `/opt/splunk/etc/apps` owned by the `splunk` user, so Splunk can still install its
-  built-in apps next to the mounted `fleet_overview`.
+  built-in apps next to the mounted `fleet_overview`. For the same reason, it creates
+  `/opt/splunk/var/log/client_events` and gives it and `/opt/splunk/var/log` to the `splunk` user.
+  Without them, Docker creates `/opt/splunk/var/log` owned by `root` to mount `.simulation/`, and
+  Splunk fails to start with `cannot create "/opt/splunk/var/log/splunk"`.
 - `splunkforwarder` builds on top of `splunk/universalforwarder`, in the version from the
   `SPLUNKFORWARDER_VERSION` build argument. It sets the same license and password variables, turns
   the `CLIENT_NAME` and `INSTANCE_NAME` build arguments into environment variables, writes the
@@ -104,7 +109,7 @@ outside your machine:
 
 ## Forwarders
 
-`compose.yaml` also starts five universal forwarders, one per version, built from the
+`compose.yaml` also defines five universal forwarders, one per version, built from the
 `splunkforwarder` target. Each one is a deployment client of the `splunk` service, which acts as
 their deployment server. Each forwarder's host name is `<service>.splunk.com`:
 
@@ -120,6 +125,16 @@ These values come from the `SPLUNKFORWARDER_VERSION`, `CLIENT_NAME`, `INSTANCE_N
 build arguments of each service. To add a forwarder, copy one of the forwarder services in
 `compose.yaml`, then change its name, build arguments and host name. Give it a new GUID from
 `uuidgen`.
+
+The forwarders are in the `forwarders` profile, so `docker compose up` doesn't start them. Their
+events would mix with the [simulated fleet](#simulated-fleet). To start them with Splunk, add the
+profile:
+
+```bash
+docker compose --profile forwarders up --detach --renew-anon-volumes
+```
+
+`docker compose down --volumes` stops them too, with or without the profile.
 
 `docker/splunkforwarder.yml` writes the forwarder settings through the splunk-ansible `conf` list:
 
@@ -160,6 +175,104 @@ starts. To change the key, change it in both files and rebuild with `--build`. T
 server rejects a forwarder with a different key, or with no key, and logs
 `Failed to verify HMAC signature` in `splunkd.log`.
 
+## Simulated fleet
+
+`pnpm simulate` runs `scripts/simulate.ts`, which simulates a fleet of 25,000 forwarders. It writes
+the events that the deployment server would log for them, in the same JSON format, to
+`.simulation/` in the repository. `compose.yaml` mounts that folder at
+`/opt/splunk/var/log/client_events`, where the deployment server writes its own logs. Splunk's
+built-in `SplunkDeploymentServerConfig` app watches that folder and indexes the files into
+`_dsphonehome`, `_dsclient` and `_dsappevent`, with the same source types, timestamps and indexed
+fields as real events. Git ignores `.simulation/`.
+
+Start Splunk, wait until `docker compose ps` shows it as `healthy`, then run:
+
+```bash
+pnpm simulate
+```
+
+The script first backfills each index as far back as the index keeps events. It reads the
+retention, `frozenTimePeriodInSecs`, from Splunk's REST API on `https://localhost:18089`:
+
+| Index          | Retention | Files                            |
+| -------------- | --------- | -------------------------------- |
+| `_dsphonehome` | 7 days    | `phonehomes_simulated_<day>.log` |
+| `_dsclient`    | 60 days   | `clients_simulated_<day>.log`    |
+| `_dsappevent`  | 60 days   | `appevents_simulated_<day>.log`  |
+
+Then it keeps writing events every second as they happen, until you stop it with Ctrl+C.
+
+- Each file holds one UTC day, such as `phonehomes_simulated_2026-11-21.log`. When it starts and
+  at midnight UTC, the script deletes the files whose day is older than their index keeps events.
+- When it starts again, the script continues after the newest event in the files, so after a day
+  off it backfills only that day. The events depend only on their time and a fixed seed, so a run
+  that stopped and started again writes the same events as one that never stopped.
+- The first backfill writes about 7.3 GB in about a minute: 1.6 GB of phone homes, 3.7 GB of
+  client events and 2 GB of app events. Splunk stores them in about 3.5 GB.
+- Each start with `--renew-anon-volumes` gives Splunk empty indexes, and Splunk indexes everything
+  in `.simulation/` again as it starts. It finishes about three minutes after `docker compose ps`
+  shows `healthy`. `docker compose restart` keeps the indexes, and Splunk carries on where it
+  stopped.
+- Docker Desktop doesn't pass file events from macOS to the container, so Splunk doesn't notice a
+  new file in `.simulation/` on its own. It does notice new lines in the files it already reads.
+  After creating a file, the script asks Splunk to look for new files with
+  `POST /services/data/inputs/monitor/_reload`.
+- To start over, stop the script, delete `.simulation/`, then start Splunk with
+  `--renew-anon-volumes`. Don't delete the folder while Splunk keeps its indexes: the script would
+  write the same events again, and Splunk would index them twice.
+- The deployment server writes its own logs to `.simulation/` too, such as
+  `phonehomes_<GUID>.log`. They stay empty while the forwarders are off. Splunk gets a new GUID on
+  every start, so three new files appear each time, and you can delete the old ones. If you run the
+  forwarders, their events land in these files, and Splunk indexes them again on every start until
+  you delete them.
+
+### Clients
+
+`@faker-js/faker` generates the clients from a fixed seed, so every run simulates the same 25,000
+forwarders. Each client has:
+
+- a GUID, used as `clientId`, `guid` and `instanceId`
+- a name such as `fortunate-responsibility-17843`, used as the client name and the instance name
+- one of 10 sites, which gives it a host name such as
+  `fortunate-responsibility-17843.dc7.which-leading.com` and an IP address in `10.7.0.0/16`
+- one of the five forwarder versions from [Forwarders](#forwarders), most often 10.0.7 and 10.2.4
+- one of four deployment rings. About 5% of the clients are also in the `fleet_canary` server
+  class, and about 2% in `fleet_blocked`.
+
+### Phone homes
+
+Every client phones home once an hour. Each hour, the script spreads the 25,000 phone homes over
+the 60 minutes so that every minute gets between 400 and 450, in a different pattern every hour. A
+client's phone home moves by a minute or two from one hour to the next. The connected forwarders
+chart counts the forwarders that phoned home in each minute, so its line stays between 400 and 450
+outside the network outage.
+
+### Scenarios
+
+The scenarios repeat every 8 hours, starting at 00:00, 08:00 and 16:00 UTC. Each one lasts an hour,
+and each client takes part at its phone home in that hour:
+
+| Hours (UTC)         | Scenario                  | What happens                                                                                                                                                                                                                               |
+| ------------------- | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 00, 08, 16          | Rollout                   | A new version of `fleet_base` goes to one of the four deployment rings, `fleet_ring_1` to `fleet_ring_4`, the next ring each time. Its about 6,250 clients log `Download`/`Ok` and `Install`/`Ok`.                                         |
+| 01, 09, 17          | Server class removed      | The about 1,250 clients in `fleet_canary` log `Uninstall`/`Ok` for `fleet_canary_inputs`.                                                                                                                                                  |
+| 02–03, 10–11, 18–19 | Failing install           | A new version of `fleet_blocked_inputs` fails on the about 500 clients in `fleet_blocked`. At both phone homes, each one logs `Download`/`Ok`, then `Install`/`Fail` with `Failed to untar archive=…`.                                     |
+| 04, 12, 20          | Install fixed             | The same clients log `Download`/`Ok` and `Install`/`Ok`.                                                                                                                                                                                   |
+| 05, 13, 21          | Deployment server restart | Every client connects again at its phone home and logs a `_dsclient` event, so the reconnects chart shows 400 to 450 a minute.                                                                                                             |
+| 06, 14, 22          | Network outage            | One of the 10 sites, the next one each time, can't reach the deployment server for the first 30 minutes. Its about 2,500 clients skip the phone homes they'd make then, so the connected forwarders line drops to about 355 to 405.        |
+| 07, 15, 23          | Recovery                  | The clients that skipped a phone home connect again at their next one, about 1,250 `_dsclient` events in the first half hour. `fleet_canary` comes back, and its clients log `Download`/`Ok` and `Install`/`Ok` for `fleet_canary_inputs`. |
+
+On top of the scenarios, 40 to 60 random clients restart every hour and log a `_dsclient` event at
+their phone home. That's about one a minute, fewer than the 1 per 100 connected forwarders that a
+[marker](#connected-forwarders-chart) needs.
+
+The script keeps two things simpler than a real deployment server: a client logs its handshake at
+its next phone home rather than right after a restart, and it keeps its place in the hour after it
+connects again.
+
+The fleet size, the shares, the schedule and the Splunk connection are constants at the top of
+`scripts/simulate.ts`.
+
 ## Development
 
 Run `pnpm dev` to rebuild `dist/fleet_overview/` on every change, then refresh the page in Splunk.
@@ -187,11 +300,14 @@ Run `pnpm dev` to rebuild `dist/fleet_overview/` on every change, then refresh t
 - `pnpm test` - Run tests once
 - `pnpm test:watch` - Run tests in watch mode
 - `pnpm format` / `pnpm format:verify` - Format code with Prettier, or check formatting
+- `pnpm simulate` - Backfill and keep writing the events of 25,000
+  [simulated forwarders](#simulated-fleet) into `.simulation/`
 - `mise run appinspect` - Package the app and validate it with Splunk AppInspect
 
 Everything these scripts generate goes to `dist/`, which git ignores: the app in
 `dist/fleet_overview/`, the package `dist/fleet_overview.tar.gz`, and the AppInspect report
-`dist/appinspect.json`.
+`dist/appinspect.json`. The only exception is `pnpm simulate`, which writes to `.simulation/`, which
+git ignores too.
 
 ## Validating with AppInspect
 
@@ -219,18 +335,20 @@ AppInspect reports any failure or error.
 
 ```
 .
-├── compose.yaml                 Local Splunk with dist/fleet_overview/ mounted as the app, and forwarders
+├── compose.yaml                 Local Splunk with dist/fleet_overview/ as the app and .simulation/ as its deployment server logs, and forwarders
 ├── Dockerfile                   splunk and splunkforwarder targets: environment and settings files
 ├── docker/
 │   ├── splunk.yml               Splunk settings: deployment auth, sessions, login, popups, telemetry, caching
 │   └── splunkforwarder.yml      Forwarder settings: names, deployment server, the same pass4SymmKey
 ├── .dockerignore                Keeps everything but docker/*.yml out of the Docker build
+├── .simulation/                 Events of the simulated fleet, one file per index and day, ignored by git
 ├── mise.toml                    Pinned tools (Node.js, pnpm, AppInspect tooling), appinspect task
 ├── pyproject.toml, uv.lock      AppInspect and its locked Python dependencies
 ├── uv.toml                      uv settings for this repository: public PyPI, mise's Python
 ├── scripts/                     TypeScript that Node runs directly, type-checked by tsconfig.node.json
 │   ├── build.ts                 Builds src/main.tsx into one page script per Splunk view, with the view labels
-│   └── package.ts               Packs dist/fleet_overview/ into dist/fleet_overview.tar.gz
+│   ├── package.ts               Packs dist/fleet_overview/ into dist/fleet_overview.tar.gz
+│   └── simulate.ts              Writes the deployment server events of 25,000 simulated forwarders to .simulation/
 ├── splunk/                      Splunk app files, copied as-is into dist/fleet_overview/
 │   ├── default/app.conf
 │   ├── default/data/ui/nav/default.xml

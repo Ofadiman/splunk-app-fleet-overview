@@ -6,7 +6,8 @@ ENV SPLUNK_START_ARGS=--accept-license \
     SPLUNK_PASSWORD=password \
     SPLUNK_HOME_OWNERSHIP_ENFORCEMENT=false
 USER root
-RUN mkdir -p /opt/splunk/etc/apps && chown splunk:splunk /opt/splunk/etc/apps
+RUN mkdir -p /opt/splunk/etc/apps /opt/splunk/var/log/client_events && \
+    chown splunk:splunk /opt/splunk/etc/apps /opt/splunk/var/log /opt/splunk/var/log/client_events
 COPY docker/splunk.yml /tmp/defaults/default.yml
 USER ansible
 
