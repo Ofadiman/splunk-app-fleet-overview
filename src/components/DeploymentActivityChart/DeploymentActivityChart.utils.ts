@@ -19,7 +19,9 @@ export const deploymentActivitySearch = (span: Span) =>
         `| stats max(${INSTALLED_FIELD}) AS ${INSTALLED_FIELD} max(${UNINSTALLED_FIELD}) AS ${UNINSTALLED_FIELD} max(${FAILED_FIELD}) AS ${FAILED_FIELD} by _time data.clientId`,
         `| timechart span=${span} sum(${INSTALLED_FIELD}) AS ${INSTALLED_FIELD} sum(${UNINSTALLED_FIELD}) AS ${UNINSTALLED_FIELD} sum(${FAILED_FIELD}) AS ${FAILED_FIELD}`,
         `| fillnull value=0 ${INSTALLED_FIELD} ${UNINSTALLED_FIELD} ${FAILED_FIELD}`,
-        '| fields - _span',
+        '| addinfo',
+        `| where _time >= info_min_time AND _time + _span <= if(info_max_time="+Infinity", now(), info_max_time)`,
+        '| fields - _span info_*',
     ].join(' ');
 
 export const yAxisTickInterval = (highest: number) =>

@@ -9,7 +9,9 @@ export const forwarderReconnectsSearch = (span: Span) =>
     [
         `| tstats prestats=t count where index=_dsclient by _time span=${span}`,
         `| timechart span=${span} count AS ${RECONNECTS_FIELD}`,
-        '| fields - _span',
+        '| addinfo',
+        `| where _time >= info_min_time AND _time + _span <= if(info_max_time="+Infinity", now(), info_max_time)`,
+        '| fields - _span info_*',
     ].join(' ');
 
 export const yAxisTickInterval = (highest: number) =>

@@ -519,8 +519,13 @@ them.
   instead. When you pick another range, a fixed resolution that doesn't fit it switches to Auto.
 - The searches ask for `count=0`, because a one-shot search returns only the first 100 rows by
   default, and 7 days in 1-hour buckets are 169 rows.
-- The last bucket of a range that ends `now` is incomplete. On the connected forwarders chart, it
-  drops below the rest until the bucket is over.
+- The charts only show complete buckets. A range that ends `now` ends in the middle of a bucket, and
+  a range like Last 4 hours (`-4h@m`) can start in the middle of one. Those buckets hold only part
+  of their events, so the connected forwarders line would drop at the edges as if the fleet went
+  quiet. `addinfo` adds the search's own start and end, `info_min_time` and `info_max_time`, and
+  `where` keeps the buckets that lie fully between them. All time ends at `+Infinity`, so it ends at
+  `now()` instead. The newest point is therefore up to one bucket old: up to an hour with the
+  default resolution.
 - Tests mock `SplunkwebConnector` with `src/testing/SplunkwebConnectorMock.tsx`, which passes the
   default presets, and answer the time parser requests with `mockTimeParser` from
   `src/testing/mockTimeParser.ts`.
@@ -536,7 +541,9 @@ is the bucket size, such as `1h`:
 ```spl
 | tstats prestats=t dc(data.clientId) where index=_dsphonehome by _time span=<span>
 | timechart span=<span> dc(data.clientId) AS connected
-| fields - _span
+| addinfo
+| where _time >= info_min_time AND _time + _span <= if(info_max_time="+Infinity", now(), info_max_time)
+| fields - _span info_*
 ```
 
 `useConnectedForwarders` in `ConnectedForwardersChart.hooks.ts` runs it through TanStack Query with
@@ -576,7 +583,9 @@ bucket:
 ```spl
 | tstats prestats=t count where index=_dsclient by _time span=<span>
 | timechart span=<span> count AS reconnects
-| fields - _span
+| addinfo
+| where _time >= info_min_time AND _time + _span <= if(info_max_time="+Infinity", now(), info_max_time)
+| fields - _span info_*
 ```
 
 `useForwarderReconnects` in `ForwarderReconnectsChart.hooks.ts` runs it the same way as the
@@ -616,7 +625,9 @@ deployment on each forwarder, with `data.action` (`Download`, `Install` or `Unin
     by _time data.clientId
 | timechart span=<span> sum(installed) AS installed sum(uninstalled) AS uninstalled sum(failed) AS failed
 | fillnull value=0 installed uninstalled failed
-| fields - _span
+| addinfo
+| where _time >= info_min_time AND _time + _span <= if(info_max_time="+Infinity", now(), info_max_time)
+| fields - _span info_*
 ```
 
 `useDeploymentActivity` in `DeploymentActivityChart.hooks.ts` runs it the same way as the other

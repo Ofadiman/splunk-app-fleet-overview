@@ -164,4 +164,18 @@ describe('ConnectedForwardersChart', () => {
         expect(screen.getByText('Invalid time.')).toBeInTheDocument();
         expect(oneShot).not.toHaveBeenCalled();
     });
+
+    it('leaves out the buckets that the time range only partly covers', async () => {
+        vi.mocked(oneShot).mockResolvedValue(
+            searchResults(['2026-11-13T10:00:00.000+00:00'], ['5']),
+        );
+
+        renderWithQueryClient(<ConnectedForwardersChart timeRange={timeRange} />);
+
+        await waitFor(() =>
+            expect(vi.mocked(oneShot).mock.lastCall?.[0].search).toContain(
+                '| addinfo | where _time >= info_min_time AND _time + _span <= if(info_max_time="+Infinity", now(), info_max_time)',
+            ),
+        );
+    });
 });
