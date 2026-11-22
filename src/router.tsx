@@ -9,7 +9,7 @@ import { createURL } from '@splunk/splunk-utils/url';
 import { DEFAULT_TIME_RANGE } from './components/TimeRangeControls/TimeRangeControls.constants';
 import Agents from './pages/agents/Agents';
 import Overview from './pages/overview/Overview';
-import { validateOverviewSearch } from './pages/overview/Overview.schema';
+import { overviewSearchSchema } from './pages/overview/Overview.schema';
 
 declare module '@tanstack/react-router' {
     interface Register {
@@ -35,7 +35,7 @@ const overviewRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: '/overview',
     component: Overview,
-    validateSearch: validateOverviewSearch,
+    validateSearch: overviewSearchSchema,
     search: { middlewares: [stripSearchParams(DEFAULT_TIME_RANGE)] },
 });
 

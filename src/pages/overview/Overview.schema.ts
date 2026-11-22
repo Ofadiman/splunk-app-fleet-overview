@@ -1,20 +1,17 @@
-import type { SearchSchemaInput } from '@tanstack/react-router';
+import { z } from 'zod';
 import { DEFAULT_TIME_RANGE } from '../../components/TimeRangeControls/TimeRangeControls.constants';
-import type { ChartTimeRange } from '../../components/TimeRangeControls/TimeRangeControls.types';
-import { isResolution } from '../../components/TimeRangeControls/TimeRangeControls.utils';
+import { resolutionSchema } from '../../components/TimeRangeControls/TimeRangeControls.schema';
 
-export type OverviewSearchInput = Partial<Record<keyof ChartTimeRange, unknown>> &
-    SearchSchemaInput;
-
-const toTime = (value: unknown, fallback: string) => {
-    if (typeof value === 'string') {
-        return value;
-    }
-    return typeof value === 'number' ? String(value) : fallback;
-};
-
-export const validateOverviewSearch = (search: OverviewSearchInput): ChartTimeRange => ({
-    earliest: toTime(search.earliest, DEFAULT_TIME_RANGE.earliest),
-    latest: toTime(search.latest, DEFAULT_TIME_RANGE.latest),
-    resolution: isResolution(search.resolution) ? search.resolution : DEFAULT_TIME_RANGE.resolution,
+export const overviewSearchSchema = z.object({
+    earliest: z
+        .union([z.string(), z.number().transform((value) => String(value))])
+        .default(DEFAULT_TIME_RANGE.earliest)
+        .catch(DEFAULT_TIME_RANGE.earliest),
+    latest: z
+        .union([z.string(), z.number().transform((value) => String(value))])
+        .default(DEFAULT_TIME_RANGE.latest)
+        .catch(DEFAULT_TIME_RANGE.latest),
+    resolution: resolutionSchema
+        .default(DEFAULT_TIME_RANGE.resolution)
+        .catch(DEFAULT_TIME_RANGE.resolution),
 });

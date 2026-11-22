@@ -30,6 +30,3 @@ export const effectiveSpan = (resolution: Resolution, durationSeconds: number) =
     resolution !== AUTO_RESOLUTION && spanFit(resolution, durationSeconds) === 'fits'
         ? resolution
         : autoSpan(durationSeconds);
-
-export const isResolution = (value: unknown): value is Resolution =>
-    value === AUTO_RESOLUTION || SPANS.some((span) => span === value);

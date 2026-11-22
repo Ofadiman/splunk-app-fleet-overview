@@ -507,9 +507,10 @@ fleet. Buckets shorter than the phone home interval only count the forwarders wh
 them.
 
 - The choice lives in the URL of the overview page, as `earliest`, `latest` and `resolution`, so a
-  reload or a shared link keeps it. `validateSearch` in `src/router.tsx` reads them with
-  `validateOverviewSearch` from `Overview.schema.ts`, and `stripSearchParams` leaves the defaults
-  out of the URL.
+  reload or a shared link keeps it. `overviewSearchSchema` in `Overview.schema.ts` is a
+  [zod](https://zod.dev) schema that `src/router.tsx` passes to `validateSearch`. It turns epoch
+  times, which the router reads as numbers, back into strings, and replaces a missing or unknown
+  value with its default. `stripSearchParams` leaves the defaults out of the URL.
 - To know how long the range is, `TimeRangeControls.hooks.ts` asks Splunk's `search/timeparser` REST
   endpoint for both ends of the range in epoch seconds (`output_time_format=%s`). TanStack Query
   caches the answer per range, so the controls and the three charts share one request.

@@ -7,9 +7,10 @@ import { sprintf } from '@splunk/ui-utils/format';
 import { AUTO_RESOLUTION, SPANS } from './TimeRangeControls.constants';
 import { useFetchTimeRangeDuration, useTimeRangeDuration } from './TimeRangeControls.hooks';
 import { messages } from './TimeRangeControls.i18n';
+import { resolutionSchema } from './TimeRangeControls.schema';
 import { StyledControls } from './TimeRangeControls.styles';
 import type { TimeRange, TimeRangeControlsProps } from './TimeRangeControls.types';
-import { autoSpan, isResolution, spanFit } from './TimeRangeControls.utils';
+import { autoSpan, spanFit } from './TimeRangeControls.utils';
 
 const TimeRangeControls = ({ value, onChange }: TimeRangeControlsProps) => {
     const duration = useTimeRangeDuration(value);
@@ -34,9 +35,10 @@ const TimeRangeControls = ({ value, onChange }: TimeRangeControlsProps) => {
         }
     };
 
-    const handleResolutionChange: SelectChangeHandler = (_event, { value: resolution }) => {
-        if (isResolution(resolution)) {
-            onChange({ ...value, resolution });
+    const handleResolutionChange: SelectChangeHandler = (_event, { value: selected }) => {
+        const resolution = resolutionSchema.safeParse(selected);
+        if (resolution.success) {
+            onChange({ ...value, resolution: resolution.data });
         }
     };
 

@@ -7,11 +7,11 @@ import ForwarderReconnectsChart from '../../components/ForwarderReconnectsChart/
 import RouterLink from '../../components/RouterLink/RouterLink';
 import TimeRangeControls from '../../components/TimeRangeControls/TimeRangeControls';
 import type { ChartTimeRange } from '../../components/TimeRangeControls/TimeRangeControls.types';
-import { validateOverviewSearch } from './Overview.schema';
+import { overviewSearchSchema } from './Overview.schema';
 import { StyledCharts, StyledContent, StyledPage } from './Overview.styles';
 
 const Overview = () => {
-    const timeRange = validateOverviewSearch(useSearch({ strict: false }));
+    const timeRange = overviewSearchSchema.parse(useSearch({ strict: false }));
     const navigate = useNavigate();
 
     const handleTimeRangeChange = (search: ChartTimeRange) => {

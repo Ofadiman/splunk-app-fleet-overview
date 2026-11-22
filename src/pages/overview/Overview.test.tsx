@@ -115,4 +115,23 @@ describe('Overview', () => {
         );
         await searchedWith({ search: expect.stringContaining('span=15m') });
     });
+
+    it('reads epoch times from the URL as times', async () => {
+        renderWithRouter('/overview?earliest=1795219200&latest=1795305600', {
+            '/overview': Overview,
+            '/agents': AgentsPage,
+        });
+
+        await searchedWith({ earliest_time: '1795219200', latest_time: '1795305600' });
+    });
+
+    it('falls back to the default resolution when the URL has an unknown one', async () => {
+        renderWithRouter('/overview?resolution=fortnightly', {
+            '/overview': Overview,
+            '/agents': AgentsPage,
+        });
+
+        expect(await screen.findByRole('combobox', { name: 'Resolution: 1 hour' })).toBeVisible();
+        await searchedWith({ search: expect.stringContaining('span=1h') });
+    });
 });
