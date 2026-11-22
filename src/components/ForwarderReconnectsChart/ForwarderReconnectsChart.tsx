@@ -10,7 +10,7 @@ import P from '@splunk/react-ui/Paragraph';
 import WaitSpinner from '@splunk/react-ui/WaitSpinner';
 import Column from '@splunk/visualizations/Column';
 import { CHART_HEIGHT, TIME_FIELD } from './ForwarderReconnectsChart.constants';
-import { useChartSpan, useResolvedSpan } from '../TimeRangeControls/TimeRangeControls.hooks';
+import { useChartSpan } from '../TimeRangeControls/TimeRangeControls.hooks';
 import { useForwarderReconnects } from './ForwarderReconnectsChart.hooks';
 import { messages } from './ForwarderReconnectsChart.i18n';
 import { StyledLoading } from './ForwarderReconnectsChart.styles';
@@ -79,13 +79,11 @@ const ChartContent = ({ timeRange }: ForwarderReconnectsChartProps) => {
 };
 
 const ForwarderReconnectsChart = ({ timeRange }: ForwarderReconnectsChartProps) => {
-    const span = useResolvedSpan(timeRange);
-
     return (
         <Card>
             <Card.Header
                 title={<Heading level={2}>{messages.title}</Heading>}
-                subtitle={span && messages.subtitles[span]}
+                subtitle={messages.description}
             />
             <Card.Body>
                 <QueryErrorResetBoundary>

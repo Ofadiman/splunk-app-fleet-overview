@@ -10,7 +10,7 @@ import P from '@splunk/react-ui/Paragraph';
 import WaitSpinner from '@splunk/react-ui/WaitSpinner';
 import Line from '@splunk/visualizations/Line';
 import { CHART_HEIGHT, TIME_FIELD } from './ConnectedForwardersChart.constants';
-import { useChartSpan, useResolvedSpan } from '../TimeRangeControls/TimeRangeControls.hooks';
+import { useChartSpan } from '../TimeRangeControls/TimeRangeControls.hooks';
 import { useConnectedForwarders } from './ConnectedForwardersChart.hooks';
 import { messages } from './ConnectedForwardersChart.i18n';
 import { StyledLoading } from './ConnectedForwardersChart.styles';
@@ -77,13 +77,11 @@ const ChartContent = ({ timeRange }: ConnectedForwardersChartProps) => {
 };
 
 const ConnectedForwardersChart = ({ timeRange }: ConnectedForwardersChartProps) => {
-    const span = useResolvedSpan(timeRange);
-
     return (
         <Card>
             <Card.Header
                 title={<Heading level={2}>{messages.title}</Heading>}
-                subtitle={span && messages.subtitles[span]}
+                subtitle={messages.description}
             />
             <Card.Body>
                 <QueryErrorResetBoundary>

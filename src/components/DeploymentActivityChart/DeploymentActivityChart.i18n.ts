@@ -1,18 +1,10 @@
 import { _ } from '@splunk/ui-utils/i18n';
-import type { Span } from './DeploymentActivityChart.types';
 
 export const messages = {
     title: _('Deployment activity'),
-    subtitles: {
-        '1m': _('Forwarders per minute'),
-        '5m': _('Forwarders per 5 minutes'),
-        '15m': _('Forwarders per 15 minutes'),
-        '30m': _('Forwarders per 30 minutes'),
-        '1h': _('Forwarders per hour'),
-        '6h': _('Forwarders per 6 hours'),
-        '1d': _('Forwarders per day'),
-        '7d': _('Forwarders per week'),
-    } satisfies Record<Span, string>,
+    description: _(
+        'Number of forwarders that installed, uninstalled or failed to deploy an app in each interval',
+    ),
     installedLabel: _('Installed'),
     uninstalledLabel: _('Uninstalled'),
     failedLabel: _('Failed'),

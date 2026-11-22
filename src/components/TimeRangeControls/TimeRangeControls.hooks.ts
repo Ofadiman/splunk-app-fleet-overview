@@ -44,9 +44,3 @@ export const useChartSpan = ({ resolution, ...timeRange }: ChartTimeRange) =>
         ...timeRangeDurationQuery(timeRange),
         select: (duration) => effectiveSpan(resolution, duration),
     }).data;
-
-export const useResolvedSpan = ({ resolution, ...timeRange }: ChartTimeRange) =>
-    useQuery({
-        ...timeRangeDurationQuery(timeRange),
-        select: (duration) => effectiveSpan(resolution, duration),
-    }).data;

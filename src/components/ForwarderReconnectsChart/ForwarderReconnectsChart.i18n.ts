@@ -1,9 +1,10 @@
 import { _ } from '@splunk/ui-utils/i18n';
-import { messages as timeRangeMessages } from '../TimeRangeControls/TimeRangeControls.i18n';
 
 export const messages = {
     title: _('Forwarder reconnects'),
-    subtitles: timeRangeMessages.perSpan,
+    description: _(
+        'Number of times forwarders connected to the deployment server after they started or restarted in each interval',
+    ),
     seriesLabel: _('Reconnects'),
     loading: _('Loading forwarder reconnects'),
     errorTitle: _('Couldn’t load forwarder reconnects'),

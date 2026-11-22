@@ -47,6 +47,11 @@ describe('ForwarderReconnectsChart', () => {
         expect(
             screen.getByRole('heading', { level: 2, name: 'Forwarder reconnects' }),
         ).toBeVisible();
+        expect(
+            screen.getByText(
+                'Number of times forwarders connected to the deployment server after they started or restarted in each interval',
+            ),
+        ).toBeVisible();
         expect(screen.getByText('Loading forwarder reconnects')).toBeInTheDocument();
     });
 
@@ -151,8 +156,8 @@ describe('ForwarderReconnectsChart', () => {
         );
 
         renderWithQueryClient(<ForwarderReconnectsChart timeRange={timeRange} />);
+        await waitFor(() => expect(oneShot).toHaveBeenCalled());
 
-        expect(await screen.findByText('Per hour')).toBeVisible();
         expect(oneShot).toHaveBeenCalledWith(
             expect.objectContaining({
                 search: expect.stringContaining('timechart span=1h count AS reconnects'),

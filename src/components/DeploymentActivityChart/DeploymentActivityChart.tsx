@@ -12,7 +12,7 @@ import getTheme from '@splunk/themes/getTheme';
 import useSplunkTheme from '@splunk/themes/useSplunkTheme';
 import Column from '@splunk/visualizations/Column';
 import { CHART_HEIGHT, TIME_FIELD } from './DeploymentActivityChart.constants';
-import { useChartSpan, useResolvedSpan } from '../TimeRangeControls/TimeRangeControls.hooks';
+import { useChartSpan } from '../TimeRangeControls/TimeRangeControls.hooks';
 import { useDeploymentActivity } from './DeploymentActivityChart.hooks';
 import { messages } from './DeploymentActivityChart.i18n';
 import { StyledLoading } from './DeploymentActivityChart.styles';
@@ -100,13 +100,11 @@ const ChartContent = ({ timeRange }: DeploymentActivityChartProps) => {
 };
 
 const DeploymentActivityChart = ({ timeRange }: DeploymentActivityChartProps) => {
-    const span = useResolvedSpan(timeRange);
-
     return (
         <Card>
             <Card.Header
                 title={<Heading level={2}>{messages.title}</Heading>}
-                subtitle={span && messages.subtitles[span]}
+                subtitle={messages.description}
             />
             <Card.Body>
                 <QueryErrorResetBoundary>

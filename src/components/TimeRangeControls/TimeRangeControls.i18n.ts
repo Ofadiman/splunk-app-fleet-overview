@@ -18,14 +18,4 @@ export const messages = {
         '1d': _('1 day'),
         '7d': _('1 week'),
     } satisfies Record<Span, string>,
-    perSpan: {
-        '1m': _('Per minute'),
-        '5m': _('Per 5 minutes'),
-        '15m': _('Per 15 minutes'),
-        '30m': _('Per 30 minutes'),
-        '1h': _('Per hour'),
-        '6h': _('Per 6 hours'),
-        '1d': _('Per day'),
-        '7d': _('Per week'),
-    } satisfies Record<Span, string>,
 };

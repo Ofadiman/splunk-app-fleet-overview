@@ -47,6 +47,11 @@ describe('DeploymentActivityChart', () => {
         expect(
             screen.getByRole('heading', { level: 2, name: 'Deployment activity' }),
         ).toBeVisible();
+        expect(
+            screen.getByText(
+                'Number of forwarders that installed, uninstalled or failed to deploy an app in each interval',
+            ),
+        ).toBeVisible();
         expect(screen.getByText('Loading deployment activity')).toBeInTheDocument();
     });
 
@@ -152,8 +157,8 @@ describe('DeploymentActivityChart', () => {
         vi.mocked(oneShot).mockResolvedValue(searchResults(['5', '0'], ['0', '2'], ['0', '1']));
 
         renderWithQueryClient(<DeploymentActivityChart timeRange={timeRange} />);
+        await waitFor(() => expect(oneShot).toHaveBeenCalled());
 
-        expect(await screen.findByText('Forwarders per hour')).toBeVisible();
         expect(oneShot).toHaveBeenCalledWith(
             expect.objectContaining({
                 search: expect.stringMatching(/by _time span=1h data\.clientId.*timechart span=1h/),

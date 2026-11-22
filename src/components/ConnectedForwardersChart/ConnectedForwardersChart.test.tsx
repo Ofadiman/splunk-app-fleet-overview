@@ -45,6 +45,11 @@ describe('ConnectedForwardersChart', () => {
         expect(
             screen.getByRole('heading', { level: 2, name: 'Connected forwarders' }),
         ).toBeVisible();
+        expect(
+            screen.getByText(
+                'Number of forwarders that phoned home to the deployment server at least once in each interval',
+            ),
+        ).toBeVisible();
         expect(screen.getByText('Loading connected forwarders')).toBeInTheDocument();
     });
 
@@ -110,8 +115,8 @@ describe('ConnectedForwardersChart', () => {
         );
 
         renderWithQueryClient(<ConnectedForwardersChart timeRange={timeRange} />);
+        await waitFor(() => expect(oneShot).toHaveBeenCalled());
 
-        expect(await screen.findByText('Per hour')).toBeVisible();
         expect(oneShot).toHaveBeenCalledWith(
             expect.objectContaining({
                 search: expect.stringContaining('by _time span=1h'),
@@ -134,8 +139,9 @@ describe('ConnectedForwardersChart', () => {
             <ConnectedForwardersChart timeRange={{ ...timeRange, resolution: 'auto' }} />,
         );
 
-        expect(await screen.findByText('Per 15 minutes')).toBeVisible();
-        expect(vi.mocked(oneShot).mock.lastCall?.[0].search).toContain('timechart span=15m');
+        await waitFor(() =>
+            expect(vi.mocked(oneShot).mock.lastCall?.[0].search).toContain('timechart span=15m'),
+        );
     });
 
     it('uses Auto when the resolution gives too many points for the time range', async () => {
@@ -150,8 +156,9 @@ describe('ConnectedForwardersChart', () => {
             />,
         );
 
-        expect(await screen.findByText('Per 6 hours')).toBeVisible();
-        expect(vi.mocked(oneShot).mock.lastCall?.[0].search).toContain('span=6h');
+        await waitFor(() =>
+            expect(vi.mocked(oneShot).mock.lastCall?.[0].search).toContain('span=6h'),
+        );
     });
 
     it('shows the error when Splunk can’t read the time range', async () => {
