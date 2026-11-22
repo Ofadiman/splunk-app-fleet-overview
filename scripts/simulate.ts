@@ -175,7 +175,7 @@ type Tag = keyof typeof tagColors;
 
 const TAG_WIDTH = Math.max(...Object.keys(tagColors).map((tag) => tag.length));
 
-const spinner = ora({ stream: process.stdout });
+const spinner = ora({ stream: process.stdout, discardStdin: false });
 
 const numbers = new Intl.NumberFormat('en-US');
 
