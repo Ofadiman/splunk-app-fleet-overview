@@ -33,7 +33,6 @@ const TICK_MS = 1000;
 const SECOND = 1000;
 const MINUTE = 60 * SECOND;
 const HOUR = 60 * MINUTE;
-const DAY = 24 * HOUR;
 const SLOT_SECONDS = 58;
 
 const MGMT_PORT = '8089';
@@ -139,20 +138,33 @@ const clients = createClients();
 
 const pad = (value: number, length = 2) => String(value).padStart(length, '0');
 
+const now = () => Temporal.Now.instant().epochMilliseconds;
+
+const utc = (time: number) =>
+    Temporal.Instant.fromEpochMilliseconds(time).toZonedDateTimeISO('UTC');
+
+const formatInstant = (time: number) => Temporal.Instant.fromEpochMilliseconds(time).toString();
+
+const startOfUtcDay = (day: Temporal.PlainDate) => day.toZonedDateTime('UTC').epochMilliseconds;
+
+const startOfNextUtcDay = (time: number) => startOfUtcDay(utc(time).toPlainDate().add({ days: 1 }));
+
 const formatTime = (time: number) => {
-    const date = new Date(time);
-    const day = `${pad(date.getUTCMonth() + 1)}-${pad(date.getUTCDate())}-${date.getUTCFullYear()}`;
-    const clock = `${pad(date.getUTCHours())}:${pad(date.getUTCMinutes())}:${pad(date.getUTCSeconds())}`;
-    return `${day} ${clock}.${pad(date.getUTCMilliseconds(), 3)} +0000`;
+    const { year, month, day, hour, minute, second, millisecond } = utc(time);
+    const clock = `${pad(hour)}:${pad(minute)}:${pad(second)}.${pad(millisecond, 3)}`;
+    return `${pad(month)}-${pad(day)}-${year} ${clock} +0000`;
 };
 
 const parseTime = (datetime: string) => {
-    const match = /^(\d{2})-(\d{2})-(\d{4}) (\d{2}):(\d{2}):(\d{2})\.(\d{3})/.exec(datetime);
+    const match = /^(\d{2})-(\d{2})-(\d{4}) (\d{2}:\d{2}:\d{2}\.\d{3}) ([+-]\d{2})(\d{2})$/.exec(
+        datetime,
+    );
     if (!match) {
         return undefined;
     }
-    const [month, day, year, hours, minutes, seconds, milliseconds] = match.slice(1).map(Number);
-    return Date.UTC(year, month - 1, day, hours, minutes, seconds, milliseconds);
+    const [, month, day, year, clock, offsetHours, offsetMinutes] = match;
+    const iso = `${year}-${month}-${day}T${clock}${offsetHours}:${offsetMinutes}`;
+    return Temporal.Instant.from(iso).epochMilliseconds;
 };
 
 const serialize = (time: number, component: string, data: object) =>
@@ -420,7 +432,7 @@ const cachedEventsForHour = (hour: number, wanted: ReadonlySet<Stream>) => {
     return cachedHour.events;
 };
 
-const dayOf = (time: number) => new Date(time).toISOString().slice(0, 10);
+const dayOf = (time: number) => utc(time).toPlainDate().toString();
 
 const simulatedFiles = () =>
     readdirSync(outputDir).flatMap((name) => {
@@ -511,7 +523,9 @@ const lastWrittenTime = () => {
 
 const prune = (starts: ByStream<number>) => {
     for (const file of simulatedFiles()) {
-        if (Date.parse(file.day) + DAY <= starts[file.stream]) {
+        if (
+            startOfUtcDay(Temporal.PlainDate.from(file.day).add({ days: 1 })) <= starts[file.stream]
+        ) {
             unlinkSync(join(outputDir, file.name));
             console.log(
                 `Deleted ${file.name}, which is older than the retention of ${indexes[file.stream]}`,
@@ -547,7 +561,7 @@ const callSplunk = (method: 'GET' | 'POST', path: string) =>
 const getRetention = async (index: string) => {
     const body = await callSplunk('GET', `/services/data/indexes/${index}?output_mode=json`);
     const { frozenTimePeriodInSecs } = JSON.parse(body).entry[0].content;
-    return Number(frozenTimePeriodInSecs) * SECOND;
+    return Temporal.Duration.from({ seconds: Number(frozenTimePeriodInSecs) });
 };
 
 const rescanNewFiles = async () => {
@@ -582,16 +596,21 @@ const formatCounts = (counts: ByStream<number>) =>
 mkdirSync(outputDir, { recursive: true });
 
 const retention = await readRetention();
-const startsAt = (now: number) => byStream((stream) => now - retention[stream]);
+const startsAt = (time: number) =>
+    byStream(
+        (stream) =>
+            Temporal.Instant.fromEpochMilliseconds(time).subtract(retention[stream])
+                .epochMilliseconds,
+    );
 
 for (const stream of streams) {
-    console.log(`${indexes[stream]} keeps events for ${retention[stream] / DAY} days`);
+    console.log(`${indexes[stream]} keeps events for ${retention[stream].total('days')} days`);
 }
 console.log(
     `The deployment server restarts once a day between ${pad(SERVER_RESTART_HOURS.min)}:00 and ${pad(SERVER_RESTART_HOURS.max)}:00 ${TIME_ZONE} time`,
 );
 
-const backfillUntil = Date.now();
+const backfillUntil = now();
 const backfillStarts = startsAt(backfillUntil);
 const resumeAfter = lastWrittenTime();
 let writtenUntil = Math.max(
@@ -602,12 +621,12 @@ let writtenUntil = Math.max(
 prune(backfillStarts);
 console.log(
     resumeAfter === undefined
-        ? `Backfilling from ${new Date(writtenUntil).toISOString()} into ${outputDir}`
-        : `Resuming after ${new Date(resumeAfter).toISOString()} in ${outputDir}`,
+        ? `Backfilling from ${formatInstant(writtenUntil)} into ${outputDir}`
+        : `Resuming after ${formatInstant(resumeAfter)} in ${outputDir}`,
 );
 
 while (writtenUntil < backfillUntil) {
-    const dayEnd = Math.min((Math.floor(writtenUntil / DAY) + 1) * DAY, backfillUntil);
+    const dayEnd = Math.min(startOfNextUtcDay(writtenUntil), backfillUntil);
     const counts = writeRange(writtenUntil, dayEnd, backfillStarts);
     console.log(`Backfilled ${dayOf(writtenUntil)}: ${formatCounts(counts)}`);
     writtenUntil = dayEnd;
@@ -620,33 +639,31 @@ let liveCounts = byStream(() => 0);
 let liveHour = Math.floor(writtenUntil / HOUR);
 
 setInterval(() => {
-    const now = Date.now();
-    if (now <= writtenUntil) {
+    const tick = now();
+    if (tick <= writtenUntil) {
         return;
     }
-    const hour = Math.floor(now / HOUR);
+    const hour = Math.floor(tick / HOUR);
 
     if (hour !== liveHour) {
-        const counts = writeRange(writtenUntil, hour * HOUR, startsAt(now));
+        const counts = writeRange(writtenUntil, hour * HOUR, startsAt(tick));
         streams.forEach((stream) => {
             liveCounts[stream] += counts[stream];
         });
-        console.log(
-            `Wrote ${new Date(liveHour * HOUR).toISOString()}: ${formatCounts(liveCounts)}`,
-        );
+        console.log(`Wrote ${formatInstant(liveHour * HOUR)}: ${formatCounts(liveCounts)}`);
         writtenUntil = hour * HOUR;
         liveCounts = byStream(() => 0);
         if (dayOf(hour * HOUR) !== dayOf(liveHour * HOUR)) {
-            prune(startsAt(now));
+            prune(startsAt(tick));
         }
         liveHour = hour;
     }
 
-    const counts = writeRange(writtenUntil, now, startsAt(now));
+    const counts = writeRange(writtenUntil, tick, startsAt(tick));
     streams.forEach((stream) => {
         liveCounts[stream] += counts[stream];
     });
-    writtenUntil = now;
+    writtenUntil = tick;
 
     rescanNewFiles().catch((error: unknown) => {
         console.error('Splunk did not rescan the new files in .simulation/', error);
