@@ -202,6 +202,13 @@ retention, `frozenTimePeriodInSecs`, from Splunk's REST API on `https://localhos
 
 Then it keeps writing events every second as they happen, until you stop it with Ctrl+C.
 
+While it runs, the script prints each step with the time and a label, such as `backfill` or `live`.
+A spinner at the bottom shows how far the backfill is, then the events written to each index since
+the backfill finished, updated every second, with `+` for the last second. Every hour, a line
+records the events of that hour, and Ctrl+C prints the total of the run. When the output isn't a
+terminal, for example when you send it to a file, the script prints the backfill day by day and the
+live counts every 10 seconds instead, without colors.
+
 - Each file holds one UTC day, such as `phonehomes_simulated_2026-11-21.log`. When it starts and
   at midnight UTC, the script deletes the files whose day is older than their index keeps events.
 - When it starts again, the script continues after the newest event in the files, so after a day

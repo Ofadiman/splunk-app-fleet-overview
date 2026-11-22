@@ -10,9 +10,12 @@ import {
     unlinkSync,
 } from 'node:fs';
 import { request } from 'node:https';
-import { join } from 'node:path';
+import { join, relative } from 'node:path';
+import { setImmediate as nextTurn } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
+import { styleText } from 'node:util';
 import { faker } from '@faker-js/faker';
+import ora from 'ora';
 
 const SEED = 2026;
 const CLIENT_COUNT = 25_000;
@@ -29,6 +32,7 @@ const TIME_ZONE = Temporal.Now.timeZoneId();
 const SPLUNK_URL = 'https://127.0.0.1:18089';
 const SPLUNK_AUTH = 'admin:password';
 const TICK_MS = 1000;
+const STATUS_INTERVAL_MS = 10_000;
 
 const SECOND = 1000;
 const MINUTE = 60 * SECOND;
@@ -143,7 +147,51 @@ const now = () => Temporal.Now.instant().epochMilliseconds;
 const utc = (time: number) =>
     Temporal.Instant.fromEpochMilliseconds(time).toZonedDateTimeISO('UTC');
 
-const formatInstant = (time: number) => Temporal.Instant.fromEpochMilliseconds(time).toString();
+const zoned = (time: number) =>
+    Temporal.Instant.fromEpochMilliseconds(time).toZonedDateTimeISO(TIME_ZONE);
+
+const formatLocalTime = (time: number) => {
+    const local = zoned(time);
+    return `${local.toPlainDate()} ${local.toPlainTime().toString({ smallestUnit: 'second' })}`;
+};
+
+const formatClock = (time: number) =>
+    zoned(time).toPlainTime().toString({ smallestUnit: 'minute' });
+
+const formatElapsed = (since: number) =>
+    Temporal.Duration.from({ milliseconds: now() - since })
+        .round({ largestUnit: 'hours', smallestUnit: 'seconds' })
+        .toLocaleString('en-US', { style: 'narrow', secondsDisplay: 'always' });
+
+const tagColors = {
+    splunk: 'cyan',
+    schedule: 'magenta',
+    files: 'blue',
+    backfill: 'yellow',
+    live: 'green',
+} as const;
+
+type Tag = keyof typeof tagColors;
+
+const TAG_WIDTH = Math.max(...Object.keys(tagColors).map((tag) => tag.length));
+
+const spinner = ora({ stream: process.stdout });
+
+const numbers = new Intl.NumberFormat('en-US');
+
+const line = (tag: Tag, message: string) => {
+    const clock = Temporal.Now.plainTimeISO(TIME_ZONE).toString({ smallestUnit: 'second' });
+    const label = styleText(['bold', tagColors[tag]], tag.padEnd(TAG_WIDTH));
+    return `${styleText('dim', clock)} ${label} ${message}`;
+};
+
+const log = (tag: Tag, message: string) => {
+    console.log(`  ${line(tag, message)}`);
+};
+
+const warn = (tag: Tag, message: string) => {
+    console.error(`${styleText('yellow', '⚠')} ${line(tag, styleText('yellow', message))}`);
+};
 
 const startOfUtcDay = (day: Temporal.PlainDate) => day.toZonedDateTime('UTC').epochMilliseconds;
 
@@ -527,7 +575,8 @@ const prune = (starts: ByStream<number>) => {
             startOfUtcDay(Temporal.PlainDate.from(file.day).add({ days: 1 })) <= starts[file.stream]
         ) {
             unlinkSync(join(outputDir, file.name));
-            console.log(
+            log(
+                'files',
                 `Deleted ${file.name}, which is older than the retention of ${indexes[file.stream]}`,
             );
         }
@@ -588,84 +637,186 @@ const readRetention = async () => {
     }
 };
 
-const formatCounts = (counts: ByStream<number>) =>
-    streams
-        .map((stream) => `${counts[stream].toLocaleString('en-US')} ${indexes[stream]}`)
-        .join(', ');
+const displayOrder: Stream[] = ['phonehomes', 'clients', 'appevents'];
 
-mkdirSync(outputDir, { recursive: true });
+const separator = styleText('dim', ' · ');
 
-const retention = await readRetention();
-const startsAt = (time: number) =>
-    byStream(
-        (stream) =>
-            Temporal.Instant.fromEpochMilliseconds(time).subtract(retention[stream])
-                .epochMilliseconds,
+const formatCounts = (counts: ByStream<number>, added?: ByStream<number>) =>
+    displayOrder
+        .map((stream) => {
+            const total = `${indexes[stream]} ${styleText('bold', numbers.format(counts[stream]))}`;
+            return added?.[stream]
+                ? `${total} ${styleText('green', `+${numbers.format(added[stream])}`)}`
+                : total;
+        })
+        .join(separator);
+
+const addCounts = (target: ByStream<number>, source: ByStream<number>) => {
+    for (const stream of streams) {
+        target[stream] += source[stream];
+    }
+};
+
+const fail = (error: unknown) => {
+    const message = error instanceof Error ? error.message : String(error);
+    const cause = error instanceof Error && error.cause instanceof Error ? error.cause.message : '';
+    spinner.fail(cause ? `${message} ${styleText('dim', `(${cause})`)}` : message);
+    process.exit(1);
+};
+
+const run = async () => {
+    mkdirSync(outputDir, { recursive: true });
+
+    const retention = await readRetention();
+    const startsAt = (time: number) =>
+        byStream(
+            (stream) =>
+                Temporal.Instant.fromEpochMilliseconds(time).subtract(retention[stream])
+                    .epochMilliseconds,
+        );
+    const folder = relative(process.cwd(), outputDir) || outputDir;
+    const written = byStream(() => 0);
+    let phase: Tag = 'backfill';
+
+    process.once('SIGINT', () => {
+        spinner.stopAndPersist({
+            symbol: styleText('yellow', '■'),
+            text: line(phase, `Stopped after writing ${formatCounts(written)}`),
+        });
+        process.exit(0);
+    });
+
+    log(
+        'splunk',
+        `Retention: ${displayOrder
+            .map((stream) => `${indexes[stream]} ${retention[stream].total('days')} days`)
+            .join(separator)}`,
+    );
+    log(
+        'schedule',
+        `The deployment server restarts once a day between ${pad(SERVER_RESTART_HOURS.min)}:00 and ${pad(SERVER_RESTART_HOURS.max)}:00 ${TIME_ZONE} time`,
     );
 
-for (const stream of streams) {
-    console.log(`${indexes[stream]} keeps events for ${retention[stream].total('days')} days`);
-}
-console.log(
-    `The deployment server restarts once a day between ${pad(SERVER_RESTART_HOURS.min)}:00 and ${pad(SERVER_RESTART_HOURS.max)}:00 ${TIME_ZONE} time`,
-);
+    const backfillUntil = now();
+    const backfillStarts = startsAt(backfillUntil);
+    const resumeAfter = lastWrittenTime();
+    let writtenUntil = Math.max(
+        resumeAfter === undefined ? -Infinity : resumeAfter + 1,
+        Math.min(...Object.values(backfillStarts)),
+    );
 
-const backfillUntil = now();
-const backfillStarts = startsAt(backfillUntil);
-const resumeAfter = lastWrittenTime();
-let writtenUntil = Math.max(
-    resumeAfter === undefined ? -Infinity : resumeAfter + 1,
-    Math.min(...Object.values(backfillStarts)),
-);
+    prune(backfillStarts);
+    log(
+        'files',
+        resumeAfter === undefined
+            ? `${folder} has no events yet, backfilling from ${formatLocalTime(writtenUntil)}`
+            : `Resuming after ${formatLocalTime(resumeAfter)}, the newest event in ${folder}`,
+    );
 
-prune(backfillStarts);
-console.log(
-    resumeAfter === undefined
-        ? `Backfilling from ${formatInstant(writtenUntil)} into ${outputDir}`
-        : `Resuming after ${formatInstant(resumeAfter)} in ${outputDir}`,
-);
+    const backfillStarted = now();
+    const backfilled = byStream(() => 0);
+    const days =
+        writtenUntil < backfillUntil
+            ? utc(writtenUntil)
+                  .toPlainDate()
+                  .until(utc(backfillUntil - 1).toPlainDate()).days + 1
+            : 0;
 
-while (writtenUntil < backfillUntil) {
-    const dayEnd = Math.min(startOfNextUtcDay(writtenUntil), backfillUntil);
-    const counts = writeRange(writtenUntil, dayEnd, backfillStarts);
-    console.log(`Backfilled ${dayOf(writtenUntil)}: ${formatCounts(counts)}`);
-    writtenUntil = dayEnd;
-}
+    spinner.start();
+    for (let day = 1; writtenUntil < backfillUntil; day += 1) {
+        const progress = styleText('dim', `day ${day} of ${days}`);
+        spinner.text = line(
+            'backfill',
+            `${dayOf(writtenUntil)} ${progress}${separator}${formatCounts(backfilled)}`,
+        );
+        await nextTurn();
 
-await rescanNewFiles();
-console.log('Backfill done. Writing events as they happen, press Ctrl+C to stop');
-
-let liveCounts = byStream(() => 0);
-let liveHour = Math.floor(writtenUntil / HOUR);
-
-setInterval(() => {
-    const tick = now();
-    if (tick <= writtenUntil) {
-        return;
-    }
-    const hour = Math.floor(tick / HOUR);
-
-    if (hour !== liveHour) {
-        const counts = writeRange(writtenUntil, hour * HOUR, startsAt(tick));
-        streams.forEach((stream) => {
-            liveCounts[stream] += counts[stream];
-        });
-        console.log(`Wrote ${formatInstant(liveHour * HOUR)}: ${formatCounts(liveCounts)}`);
-        writtenUntil = hour * HOUR;
-        liveCounts = byStream(() => 0);
-        if (dayOf(hour * HOUR) !== dayOf(liveHour * HOUR)) {
-            prune(startsAt(tick));
+        const dayEnd = Math.min(startOfNextUtcDay(writtenUntil), backfillUntil);
+        const counts = writeRange(writtenUntil, dayEnd, backfillStarts);
+        addCounts(backfilled, counts);
+        addCounts(written, counts);
+        if (!spinner.isEnabled) {
+            log('backfill', `${dayOf(writtenUntil)}: ${formatCounts(counts)}`);
         }
-        liveHour = hour;
+        writtenUntil = dayEnd;
     }
 
-    const counts = writeRange(writtenUntil, tick, startsAt(tick));
-    streams.forEach((stream) => {
-        liveCounts[stream] += counts[stream];
-    });
-    writtenUntil = tick;
+    await rescanNewFiles();
+    const summary =
+        days === 0
+            ? 'Nothing to backfill'
+            : `${days} ${days === 1 ? 'day' : 'days'} in ${formatElapsed(backfillStarted)}: ${formatCounts(backfilled)}`;
+    spinner.succeed(line('backfill', summary));
 
-    rescanNewFiles().catch((error: unknown) => {
-        console.error('Splunk did not rescan the new files in .simulation/', error);
-    });
-}, TICK_MS);
+    phase = 'live';
+    log('live', 'Writing events as they happen. Press Ctrl+C to stop');
+
+    const liveSince = writtenUntil;
+    const liveWritten = byStream(() => 0);
+    let lastStatus = byStream(() => 0);
+    let hourWritten = byStream(() => 0);
+    let hourStart = writtenUntil;
+    let liveHour = Math.floor(writtenUntil / HOUR);
+
+    const liveText = (added?: ByStream<number>) =>
+        line(
+            'live',
+            `${formatCounts(liveWritten, added)} ${styleText('dim', `since ${formatClock(liveSince)}`)}`,
+        );
+
+    if (spinner.isEnabled) {
+        spinner.start(liveText());
+    }
+
+    setInterval(() => {
+        const tick = now();
+        if (tick <= writtenUntil) {
+            return;
+        }
+
+        const added = byStream(() => 0);
+        const record = (counts: ByStream<number>) => {
+            addCounts(added, counts);
+            addCounts(hourWritten, counts);
+        };
+        const hour = Math.floor(tick / HOUR);
+
+        if (hour !== liveHour) {
+            record(writeRange(writtenUntil, hour * HOUR, startsAt(tick)));
+            log(
+                'live',
+                `${formatClock(hourStart)}–${formatClock(hour * HOUR)}: ${formatCounts(hourWritten)}`,
+            );
+            writtenUntil = hour * HOUR;
+            hourStart = writtenUntil;
+            hourWritten = byStream(() => 0);
+            if (dayOf(hour * HOUR) !== dayOf(liveHour * HOUR)) {
+                prune(startsAt(tick));
+            }
+            liveHour = hour;
+        }
+
+        record(writeRange(writtenUntil, tick, startsAt(tick)));
+        writtenUntil = tick;
+
+        addCounts(liveWritten, added);
+        addCounts(lastStatus, added);
+        addCounts(written, added);
+        spinner.text = liveText(added);
+
+        rescanNewFiles().catch((error: unknown) => {
+            const reason = error instanceof Error ? error.message : String(error);
+            warn('files', `Splunk did not rescan the new files in ${folder}: ${reason}`);
+        });
+    }, TICK_MS);
+
+    if (!spinner.isEnabled) {
+        setInterval(() => {
+            const legend = `since ${formatClock(liveSince)}, + in the last ${STATUS_INTERVAL_MS / SECOND} s`;
+            log('live', `${formatCounts(liveWritten, lastStatus)} ${styleText('dim', legend)}`);
+            lastStatus = byStream(() => 0);
+        }, STATUS_INTERVAL_MS);
+    }
+};
+
+run().catch(fail);

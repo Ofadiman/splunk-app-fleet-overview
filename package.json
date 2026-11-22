@@ -45,6 +45,7 @@
     "@vitejs/plugin-react-swc": "^4.2.2",
     "@xmldom/xmldom": "^0.9.12",
     "jsdom": "^29.0.1",
+    "ora": "^10.0.0",
     "prettier": "^3.6.2",
     "tar": "^7.5.22",
     "typescript": "^6.0.3",
