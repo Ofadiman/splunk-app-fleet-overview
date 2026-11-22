@@ -10,9 +10,11 @@ import P from '@splunk/react-ui/Paragraph';
 import WaitSpinner from '@splunk/react-ui/WaitSpinner';
 import Line from '@splunk/visualizations/Line';
 import { CHART_HEIGHT, TIME_FIELD } from './ConnectedForwardersChart.constants';
+import { useChartSpan, useResolvedSpan } from '../TimeRangeControls/TimeRangeControls.hooks';
 import { useConnectedForwarders } from './ConnectedForwardersChart.hooks';
 import { messages } from './ConnectedForwardersChart.i18n';
 import { StyledLoading } from './ConnectedForwardersChart.styles';
+import type { ConnectedForwardersChartProps } from './ConnectedForwardersChart.types';
 
 const chartOptions = {
     backgroundColor: 'transparent',
@@ -37,8 +39,13 @@ const ChartError = ({ error, resetErrorBoundary }: FallbackProps) => (
     </Message>
 );
 
-const ChartContent = () => {
-    const { data } = useConnectedForwarders();
+const ChartContent = ({ timeRange }: ConnectedForwardersChartProps) => {
+    const span = useChartSpan(timeRange);
+    const { data } = useConnectedForwarders({
+        earliest: timeRange.earliest,
+        latest: timeRange.latest,
+        span,
+    });
 
     if (data.times.length === 0) {
         return (
@@ -69,24 +76,28 @@ const ChartContent = () => {
     );
 };
 
-const ConnectedForwardersChart = () => (
-    <Card>
-        <Card.Header
-            title={<Heading level={2}>{messages.title}</Heading>}
-            subtitle={messages.subtitle}
-        />
-        <Card.Body>
-            <QueryErrorResetBoundary>
-                {({ reset }) => (
-                    <ErrorBoundary onReset={reset} FallbackComponent={ChartError}>
-                        <Suspense fallback={<ChartLoading />}>
-                            <ChartContent />
-                        </Suspense>
-                    </ErrorBoundary>
-                )}
-            </QueryErrorResetBoundary>
-        </Card.Body>
-    </Card>
-);
+const ConnectedForwardersChart = ({ timeRange }: ConnectedForwardersChartProps) => {
+    const span = useResolvedSpan(timeRange);
+
+    return (
+        <Card>
+            <Card.Header
+                title={<Heading level={2}>{messages.title}</Heading>}
+                subtitle={span && messages.subtitles[span]}
+            />
+            <Card.Body>
+                <QueryErrorResetBoundary>
+                    {({ reset }) => (
+                        <ErrorBoundary onReset={reset} FallbackComponent={ChartError}>
+                            <Suspense fallback={<ChartLoading />}>
+                                <ChartContent timeRange={timeRange} />
+                            </Suspense>
+                        </ErrorBoundary>
+                    )}
+                </QueryErrorResetBoundary>
+            </Card.Body>
+        </Card>
+    );
+};
 
 export default ConnectedForwardersChart;

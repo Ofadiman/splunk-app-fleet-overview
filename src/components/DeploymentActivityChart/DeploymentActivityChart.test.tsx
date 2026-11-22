@@ -3,7 +3,9 @@ import userEvent from '@testing-library/user-event';
 import { oneShot } from '@splunk/splunk-utils/search';
 import Column from '@splunk/visualizations/Column';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { mockTimeParser } from '../../testing/mockTimeParser';
 import { renderWithQueryClient } from '../../testing/renderWithQueryClient';
+import type { ChartTimeRange } from '../TimeRangeControls/TimeRangeControls.types';
 import DeploymentActivityChart from './DeploymentActivityChart';
 
 vi.mock('@splunk/splunk-utils/search', () => ({ oneShot: vi.fn() }));
@@ -21,10 +23,13 @@ const searchResults = (installed: string[], uninstalled: string[], failed: strin
 
 const chartProps = () => vi.mocked(Column).mock.lastCall?.[0];
 
+const timeRange: ChartTimeRange = { earliest: '-24h@h', latest: 'now', resolution: '1h' };
+
 const silenceErrorBoundaryLogs = () => vi.spyOn(console, 'error').mockImplementation(() => {});
 
 describe('DeploymentActivityChart', () => {
     beforeEach(() => {
+        mockTimeParser();
         vi.mocked(oneShot).mockReset();
         vi.mocked(Column).mockClear();
     });
@@ -33,10 +38,11 @@ describe('DeploymentActivityChart', () => {
         vi.restoreAllMocks();
     });
 
-    it('shows a loading message while the search runs', () => {
+    it('shows a loading message while the search runs', async () => {
         vi.mocked(oneShot).mockReturnValue(new Promise(() => {}));
 
-        renderWithQueryClient(<DeploymentActivityChart />);
+        renderWithQueryClient(<DeploymentActivityChart timeRange={timeRange} />);
+        await waitFor(() => expect(oneShot).toHaveBeenCalled());
 
         expect(
             screen.getByRole('heading', { level: 2, name: 'Deployment activity' }),
@@ -47,7 +53,7 @@ describe('DeploymentActivityChart', () => {
     it('draws the forwarders that installed, uninstalled or failed per minute', async () => {
         vi.mocked(oneShot).mockResolvedValue(searchResults(['0', '1'], ['2', '0'], ['1', '1']));
 
-        renderWithQueryClient(<DeploymentActivityChart />);
+        renderWithQueryClient(<DeploymentActivityChart timeRange={timeRange} />);
 
         await waitFor(() =>
             expect(chartProps()?.dataSources.primary.data).toEqual({
@@ -62,7 +68,7 @@ describe('DeploymentActivityChart', () => {
     it('gives each outcome its own hex color', async () => {
         vi.mocked(oneShot).mockResolvedValue(searchResults(['0', '1'], ['2', '0'], ['1', '1']));
 
-        renderWithQueryClient(<DeploymentActivityChart />);
+        renderWithQueryClient(<DeploymentActivityChart timeRange={timeRange} />);
 
         await waitFor(() => expect(chartProps()).toBeDefined());
         const colors = chartProps()?.options?.seriesColorsByField;
@@ -74,7 +80,7 @@ describe('DeploymentActivityChart', () => {
     it('marks the y-axis in whole forwarders when there are few', async () => {
         vi.mocked(oneShot).mockResolvedValue(searchResults(['0', '1'], ['2', '0'], ['1', '1']));
 
-        renderWithQueryClient(<DeploymentActivityChart />);
+        renderWithQueryClient(<DeploymentActivityChart timeRange={timeRange} />);
 
         await waitFor(() => expect(chartProps()?.options?.yAxisMajorTickInterval).toBe(1));
     });
@@ -82,7 +88,7 @@ describe('DeploymentActivityChart', () => {
     it('marks the y-axis in pairs of forwarders when up to ten take part', async () => {
         vi.mocked(oneShot).mockResolvedValue(searchResults(['5', '0'], ['0', '2'], ['1', '0']));
 
-        renderWithQueryClient(<DeploymentActivityChart />);
+        renderWithQueryClient(<DeploymentActivityChart timeRange={timeRange} />);
 
         await waitFor(() => expect(chartProps()?.options?.yAxisMajorTickInterval).toBe(2));
     });
@@ -90,7 +96,7 @@ describe('DeploymentActivityChart', () => {
     it('lets the chart space the y-axis marks when many forwarders take part', async () => {
         vi.mocked(oneShot).mockResolvedValue(searchResults(['40', '3'], ['0', '0'], ['2', '0']));
 
-        renderWithQueryClient(<DeploymentActivityChart />);
+        renderWithQueryClient(<DeploymentActivityChart timeRange={timeRange} />);
 
         await waitFor(() => expect(chartProps()?.options?.yAxisMajorTickInterval).toBe('auto'));
     });
@@ -98,10 +104,10 @@ describe('DeploymentActivityChart', () => {
     it('tells when the search finds no app events', async () => {
         vi.mocked(oneShot).mockResolvedValue({ fields: [], columns: [] });
 
-        renderWithQueryClient(<DeploymentActivityChart />);
+        renderWithQueryClient(<DeploymentActivityChart timeRange={timeRange} />);
 
         expect(
-            await screen.findByText('No app deployments in the last 60 minutes'),
+            await screen.findByText('No app deployments in this time range'),
         ).toBeInTheDocument();
         expect(Column).not.toHaveBeenCalled();
     });
@@ -109,10 +115,10 @@ describe('DeploymentActivityChart', () => {
     it('tells when no forwarder installed, uninstalled or failed in any minute', async () => {
         vi.mocked(oneShot).mockResolvedValue(searchResults(['0', '0'], ['0', '0'], ['0', '0']));
 
-        renderWithQueryClient(<DeploymentActivityChart />);
+        renderWithQueryClient(<DeploymentActivityChart timeRange={timeRange} />);
 
         expect(
-            await screen.findByText('No app deployments in the last 60 minutes'),
+            await screen.findByText('No app deployments in this time range'),
         ).toBeInTheDocument();
         expect(Column).not.toHaveBeenCalled();
     });
@@ -121,7 +127,7 @@ describe('DeploymentActivityChart', () => {
         silenceErrorBoundaryLogs();
         vi.mocked(oneShot).mockRejectedValue(new Error('Search job quota exceeded'));
 
-        renderWithQueryClient(<DeploymentActivityChart />);
+        renderWithQueryClient(<DeploymentActivityChart timeRange={timeRange} />);
 
         expect(await screen.findByText('Couldn’t load deployment activity')).toBeInTheDocument();
         expect(screen.getByText('Search job quota exceeded')).toBeInTheDocument();
@@ -133,12 +139,31 @@ describe('DeploymentActivityChart', () => {
             .mockRejectedValueOnce(new Error('Search job quota exceeded'))
             .mockResolvedValueOnce(searchResults(['5', '0'], ['0', '0'], ['0', '0']));
 
-        renderWithQueryClient(<DeploymentActivityChart />);
+        renderWithQueryClient(<DeploymentActivityChart timeRange={timeRange} />);
         await userEvent.click(await screen.findByRole('button', { name: 'Try again' }));
 
         await waitFor(() =>
             expect(chartProps()?.dataSources.primary.data.columns[1]).toEqual(['5', '0']),
         );
         expect(screen.queryByText('Couldn’t load deployment activity')).not.toBeInTheDocument();
+    });
+
+    it('searches the time range in buckets of the chosen resolution', async () => {
+        vi.mocked(oneShot).mockResolvedValue(searchResults(['5', '0'], ['0', '2'], ['0', '1']));
+
+        renderWithQueryClient(<DeploymentActivityChart timeRange={timeRange} />);
+
+        expect(await screen.findByText('Forwarders per hour')).toBeVisible();
+        expect(oneShot).toHaveBeenCalledWith(
+            expect.objectContaining({
+                search: expect.stringMatching(/by _time span=1h data\.clientId.*timechart span=1h/),
+                earliest_time: '-24h@h',
+                latest_time: 'now',
+                count: 0,
+            }),
+            undefined,
+            undefined,
+            expect.anything(),
+        );
     });
 });

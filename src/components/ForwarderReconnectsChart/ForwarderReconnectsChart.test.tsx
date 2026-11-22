@@ -3,7 +3,9 @@ import userEvent from '@testing-library/user-event';
 import { oneShot } from '@splunk/splunk-utils/search';
 import Column from '@splunk/visualizations/Column';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { mockTimeParser } from '../../testing/mockTimeParser';
 import { renderWithQueryClient } from '../../testing/renderWithQueryClient';
+import type { ChartTimeRange } from '../TimeRangeControls/TimeRangeControls.types';
 import ForwarderReconnectsChart from './ForwarderReconnectsChart';
 
 vi.mock('@splunk/splunk-utils/search', () => ({ oneShot: vi.fn() }));
@@ -21,10 +23,13 @@ const chartData = () => vi.mocked(Column).mock.lastCall?.[0].dataSources.primary
 
 const chartOptions = () => vi.mocked(Column).mock.lastCall?.[0].options;
 
+const timeRange: ChartTimeRange = { earliest: '-24h@h', latest: 'now', resolution: '1h' };
+
 const silenceErrorBoundaryLogs = () => vi.spyOn(console, 'error').mockImplementation(() => {});
 
 describe('ForwarderReconnectsChart', () => {
     beforeEach(() => {
+        mockTimeParser();
         vi.mocked(oneShot).mockReset();
         vi.mocked(Column).mockClear();
     });
@@ -33,10 +38,11 @@ describe('ForwarderReconnectsChart', () => {
         vi.restoreAllMocks();
     });
 
-    it('shows a loading message while the search runs', () => {
+    it('shows a loading message while the search runs', async () => {
         vi.mocked(oneShot).mockReturnValue(new Promise(() => {}));
 
-        renderWithQueryClient(<ForwarderReconnectsChart />);
+        renderWithQueryClient(<ForwarderReconnectsChart timeRange={timeRange} />);
+        await waitFor(() => expect(oneShot).toHaveBeenCalled());
 
         expect(
             screen.getByRole('heading', { level: 2, name: 'Forwarder reconnects' }),
@@ -52,7 +58,7 @@ describe('ForwarderReconnectsChart', () => {
             ),
         );
 
-        renderWithQueryClient(<ForwarderReconnectsChart />);
+        renderWithQueryClient(<ForwarderReconnectsChart timeRange={timeRange} />);
 
         await waitFor(() =>
             expect(chartData()).toEqual({
@@ -74,7 +80,7 @@ describe('ForwarderReconnectsChart', () => {
             ),
         );
 
-        renderWithQueryClient(<ForwarderReconnectsChart />);
+        renderWithQueryClient(<ForwarderReconnectsChart timeRange={timeRange} />);
 
         await waitFor(() => expect(chartOptions()?.yAxisMajorTickInterval).toBe(1));
     });
@@ -87,7 +93,7 @@ describe('ForwarderReconnectsChart', () => {
             ),
         );
 
-        renderWithQueryClient(<ForwarderReconnectsChart />);
+        renderWithQueryClient(<ForwarderReconnectsChart timeRange={timeRange} />);
 
         await waitFor(() => expect(chartOptions()?.yAxisMajorTickInterval).toBe(2));
     });
@@ -100,7 +106,7 @@ describe('ForwarderReconnectsChart', () => {
             ),
         );
 
-        renderWithQueryClient(<ForwarderReconnectsChart />);
+        renderWithQueryClient(<ForwarderReconnectsChart timeRange={timeRange} />);
 
         await waitFor(() => expect(chartOptions()?.yAxisMajorTickInterval).toBe('auto'));
     });
@@ -108,10 +114,10 @@ describe('ForwarderReconnectsChart', () => {
     it('tells when no forwarder reconnected', async () => {
         vi.mocked(oneShot).mockResolvedValue({ fields: [], columns: [] });
 
-        renderWithQueryClient(<ForwarderReconnectsChart />);
+        renderWithQueryClient(<ForwarderReconnectsChart timeRange={timeRange} />);
 
         expect(
-            await screen.findByText('No forwarder reconnected in the last 60 minutes'),
+            await screen.findByText('No forwarder reconnected in this time range'),
         ).toBeInTheDocument();
         expect(Column).not.toHaveBeenCalled();
     });
@@ -120,7 +126,7 @@ describe('ForwarderReconnectsChart', () => {
         silenceErrorBoundaryLogs();
         vi.mocked(oneShot).mockRejectedValue(new Error('Search job quota exceeded'));
 
-        renderWithQueryClient(<ForwarderReconnectsChart />);
+        renderWithQueryClient(<ForwarderReconnectsChart timeRange={timeRange} />);
 
         expect(await screen.findByText('Couldn’t load forwarder reconnects')).toBeInTheDocument();
         expect(screen.getByText('Search job quota exceeded')).toBeInTheDocument();
@@ -132,10 +138,31 @@ describe('ForwarderReconnectsChart', () => {
             .mockRejectedValueOnce(new Error('Search job quota exceeded'))
             .mockResolvedValueOnce(searchResults(['2026-11-14T18:18:00.000+00:00'], ['3']));
 
-        renderWithQueryClient(<ForwarderReconnectsChart />);
+        renderWithQueryClient(<ForwarderReconnectsChart timeRange={timeRange} />);
         await userEvent.click(await screen.findByRole('button', { name: 'Try again' }));
 
         await waitFor(() => expect(chartData()?.columns[1]).toEqual(['3']));
         expect(screen.queryByText('Couldn’t load forwarder reconnects')).not.toBeInTheDocument();
+    });
+
+    it('searches the time range in buckets of the chosen resolution', async () => {
+        vi.mocked(oneShot).mockResolvedValue(
+            searchResults(['2026-11-13T10:00:00.000+00:00'], ['2']),
+        );
+
+        renderWithQueryClient(<ForwarderReconnectsChart timeRange={timeRange} />);
+
+        expect(await screen.findByText('Per hour')).toBeVisible();
+        expect(oneShot).toHaveBeenCalledWith(
+            expect.objectContaining({
+                search: expect.stringContaining('timechart span=1h count AS reconnects'),
+                earliest_time: '-24h@h',
+                latest_time: 'now',
+                count: 0,
+            }),
+            undefined,
+            undefined,
+            expect.anything(),
+        );
     });
 });

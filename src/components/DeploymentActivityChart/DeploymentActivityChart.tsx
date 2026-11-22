@@ -12,9 +12,11 @@ import getTheme from '@splunk/themes/getTheme';
 import useSplunkTheme from '@splunk/themes/useSplunkTheme';
 import Column from '@splunk/visualizations/Column';
 import { CHART_HEIGHT, TIME_FIELD } from './DeploymentActivityChart.constants';
+import { useChartSpan, useResolvedSpan } from '../TimeRangeControls/TimeRangeControls.hooks';
 import { useDeploymentActivity } from './DeploymentActivityChart.hooks';
 import { messages } from './DeploymentActivityChart.i18n';
 import { StyledLoading } from './DeploymentActivityChart.styles';
+import type { DeploymentActivityChartProps } from './DeploymentActivityChart.types';
 import { yAxisTickInterval } from './DeploymentActivityChart.utils';
 
 const ChartLoading = () => (
@@ -32,8 +34,13 @@ const ChartError = ({ error, resetErrorBoundary }: FallbackProps) => (
     </Message>
 );
 
-const ChartContent = () => {
-    const { data } = useDeploymentActivity();
+const ChartContent = ({ timeRange }: DeploymentActivityChartProps) => {
+    const span = useChartSpan(timeRange);
+    const { data } = useDeploymentActivity({
+        earliest: timeRange.earliest,
+        latest: timeRange.latest,
+        span,
+    });
     const { colorScheme } = useSplunkTheme();
     const { severityColorNormal, severityColorInfo, severityColorCritical } = getTheme({
         family: 'prisma',
@@ -92,24 +99,28 @@ const ChartContent = () => {
     );
 };
 
-const DeploymentActivityChart = () => (
-    <Card>
-        <Card.Header
-            title={<Heading level={2}>{messages.title}</Heading>}
-            subtitle={messages.subtitle}
-        />
-        <Card.Body>
-            <QueryErrorResetBoundary>
-                {({ reset }) => (
-                    <ErrorBoundary onReset={reset} FallbackComponent={ChartError}>
-                        <Suspense fallback={<ChartLoading />}>
-                            <ChartContent />
-                        </Suspense>
-                    </ErrorBoundary>
-                )}
-            </QueryErrorResetBoundary>
-        </Card.Body>
-    </Card>
-);
+const DeploymentActivityChart = ({ timeRange }: DeploymentActivityChartProps) => {
+    const span = useResolvedSpan(timeRange);
+
+    return (
+        <Card>
+            <Card.Header
+                title={<Heading level={2}>{messages.title}</Heading>}
+                subtitle={span && messages.subtitles[span]}
+            />
+            <Card.Body>
+                <QueryErrorResetBoundary>
+                    {({ reset }) => (
+                        <ErrorBoundary onReset={reset} FallbackComponent={ChartError}>
+                            <Suspense fallback={<ChartLoading />}>
+                                <ChartContent timeRange={timeRange} />
+                            </Suspense>
+                        </ErrorBoundary>
+                    )}
+                </QueryErrorResetBoundary>
+            </Card.Body>
+        </Card>
+    );
+};
 
 export default DeploymentActivityChart;

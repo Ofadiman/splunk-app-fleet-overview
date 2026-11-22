@@ -8,12 +8,18 @@ importers:
 
   .:
     dependencies:
+      '@splunk/moment':
+        specifier: ^0.7.0
+        version: 0.7.0
       '@splunk/react-icons':
         specifier: ^5.16.0
         version: 5.17.0(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(styled-components@5.3.11(@babel/core@7.29.13(supports-color@5.5.0))(react-dom@18.3.1(react@18.3.1))(react-is@18.3.1)(react@18.3.1))
       '@splunk/react-page':
         specifier: ^8.5.0
         version: 8.5.0(@types/react@18.3.31)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(styled-components@5.3.11(@babel/core@7.29.13(supports-color@5.5.0))(react-dom@18.3.1(react@18.3.1))(react-is@18.3.1)(react@18.3.1))(supports-color@5.5.0)(typescript@6.0.3)
+      '@splunk/react-time-range':
+        specifier: ^12.1.2
+        version: 12.1.2(@splunk/moment@0.7.0)(@splunk/react-ui@5.18.0(@types/react@18.3.31)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(styled-components@5.3.11(@babel/core@7.29.13(supports-color@5.5.0))(react-dom@18.3.1(react@18.3.1))(react-is@18.3.1)(react@18.3.1))(supports-color@5.5.0)(typescript@6.0.3))(@splunk/splunk-utils@4.2.0)(@splunk/themes@1.13.1(@types/react@18.3.31)(react@18.3.1)(styled-components@5.3.11(@babel/core@7.29.13(supports-color@5.5.0))(react-dom@18.3.1(react@18.3.1))(react-is@18.3.1)(react@18.3.1)))(@splunk/time-range-utils@3.4.1)(@splunk/ui-utils@1.15.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(styled-components@5.3.11(@babel/core@7.29.13(supports-color@5.5.0))(react-dom@18.3.1(react@18.3.1))(react-is@18.3.1)(react@18.3.1))
       '@splunk/react-ui':
         specifier: ^5.17.0
         version: 5.18.0(@types/react@18.3.31)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(styled-components@5.3.11(@babel/core@7.29.13(supports-color@5.5.0))(react-dom@18.3.1(react@18.3.1))(react-is@18.3.1)(react@18.3.1))(supports-color@5.5.0)(typescript@6.0.3)
@@ -23,6 +29,9 @@ importers:
       '@splunk/themes':
         specifier: ^1.13.0
         version: 1.13.1(@types/react@18.3.31)(react@18.3.1)(styled-components@5.3.11(@babel/core@7.29.13(supports-color@5.5.0))(react-dom@18.3.1(react@18.3.1))(react-is@18.3.1)(react@18.3.1))
+      '@splunk/time-range-utils':
+        specifier: ^3.4.1
+        version: 3.4.1
       '@splunk/ui-utils':
         specifier: ^1.15.0
         version: 1.15.0
@@ -875,6 +884,19 @@ packages:
     peerDependencies:
       react: ^16.8.0 || ^17.0.0 || ^18.0.0
       react-dom: ^16.8.0 || ^17.0.0 || ^18.0.0
+      styled-components: ^5.3.10
+
+  '@splunk/react-time-range@12.1.2':
+    resolution: {integrity: sha512-xbRUprjFNrxA+DQWZs8bVTiNSxoS7Xfrg+u4IGa0f2n7PeZT5jRZVyzGZPSymVscfaFbDe8H/FlMwVx4vRwB+A==}
+    peerDependencies:
+      '@splunk/moment': ^0.7.0
+      '@splunk/react-ui': ^5.18.0
+      '@splunk/splunk-utils': ^4.2.0
+      '@splunk/themes': ^1.13.1
+      '@splunk/time-range-utils': ^3.3.0
+      '@splunk/ui-utils': ^1.15.0
+      react: ^16.12.0 || ^17.0.0 || ^18.0.0
+      react-dom: ^16.12.0 || ^17.0.0 || ^18.0.0
       styled-components: ^5.3.10
 
   '@splunk/react-ui@5.18.0':
@@ -3111,6 +3133,21 @@ snapshots:
       - '@types/react'
       - supports-color
       - typescript
+
+  '@splunk/react-time-range@12.1.2(@splunk/moment@0.7.0)(@splunk/react-ui@5.18.0(@types/react@18.3.31)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(styled-components@5.3.11(@babel/core@7.29.13(supports-color@5.5.0))(react-dom@18.3.1(react@18.3.1))(react-is@18.3.1)(react@18.3.1))(supports-color@5.5.0)(typescript@6.0.3))(@splunk/splunk-utils@4.2.0)(@splunk/themes@1.13.1(@types/react@18.3.31)(react@18.3.1)(styled-components@5.3.11(@babel/core@7.29.13(supports-color@5.5.0))(react-dom@18.3.1(react@18.3.1))(react-is@18.3.1)(react@18.3.1)))(@splunk/time-range-utils@3.4.1)(@splunk/ui-utils@1.15.0)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(styled-components@5.3.11(@babel/core@7.29.13(supports-color@5.5.0))(react-dom@18.3.1(react@18.3.1))(react-is@18.3.1)(react@18.3.1))':
+    dependencies:
+      '@babel/runtime': 7.29.13
+      '@splunk/moment': 0.7.0
+      '@splunk/react-ui': 5.18.0(@types/react@18.3.31)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(styled-components@5.3.11(@babel/core@7.29.13(supports-color@5.5.0))(react-dom@18.3.1(react@18.3.1))(react-is@18.3.1)(react@18.3.1))(supports-color@5.5.0)(typescript@6.0.3)
+      '@splunk/splunk-utils': 4.2.0
+      '@splunk/themes': 1.13.1(@types/react@18.3.31)(react@18.3.1)(styled-components@5.3.11(@babel/core@7.29.13(supports-color@5.5.0))(react-dom@18.3.1(react@18.3.1))(react-is@18.3.1)(react@18.3.1))
+      '@splunk/time-range-utils': 3.4.1
+      '@splunk/ui-utils': 1.15.0
+      lodash: 4.18.1
+      prop-types: 15.8.1
+      react: 18.3.1
+      react-dom: 18.3.1(react@18.3.1)
+      styled-components: 5.3.11(@babel/core@7.29.13(supports-color@5.5.0))(react-dom@18.3.1(react@18.3.1))(react-is@18.3.1)(react@18.3.1)
 
   '@splunk/react-ui@5.18.0(@types/react@18.3.31)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(styled-components@5.3.11(@babel/core@7.29.13(supports-color@5.5.0))(react-dom@18.3.1(react@18.3.1))(react-is@18.3.1)(react@18.3.1))(supports-color@5.5.0)(typescript@6.0.3)':
     dependencies:

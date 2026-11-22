@@ -251,23 +251,23 @@ forwarders. Each client has:
 
 Every client phones home once an hour. Each hour, the script spreads the 25,000 phone homes over
 the 60 minutes so that every minute gets between 400 and 450, in a different pattern every hour. A
-client's phone home moves by a minute or two from one hour to the next. The connected forwarders
-chart counts the forwarders that phoned home in each minute, so its line stays between 400 and 450
-outside the network outage.
+client's phone home moves by a minute or two from one hour to the next. At 1-minute resolution,
+the connected forwarders line stays between 400 and 450 outside the network outage. At 1 hour or
+more, every client phones home in each bucket, so the line shows the whole fleet of 25,000.
 
 ### Scenarios
 
 The scenarios repeat every 8 hours, starting at 00:00, 08:00 and 16:00 UTC. Each one lasts an hour,
 and each client takes part at its phone home in that hour:
 
-| Hours (UTC)         | Scenario             | What happens                                                                                                                                                                                                                               |
-| ------------------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 00, 08, 16          | Rollout              | A new version of `fleet_base` goes to one of the four deployment rings, `fleet_ring_1` to `fleet_ring_4`, the next ring each time. Its about 6,250 clients log `Download`/`Ok` and `Install`/`Ok`.                                         |
-| 01, 09, 17          | Server class removed | The about 1,250 clients in `fleet_canary` log `Uninstall`/`Ok` for `fleet_canary_inputs`.                                                                                                                                                  |
-| 02–03, 10–11, 18–19 | Failing install      | A new version of `fleet_blocked_inputs` fails on the about 500 clients in `fleet_blocked`. At both phone homes, each one logs `Download`/`Ok`, then `Install`/`Fail` with `Failed to untar archive=…`.                                     |
-| 04, 12, 20          | Install fixed        | The same clients log `Download`/`Ok` and `Install`/`Ok`.                                                                                                                                                                                   |
-| 06, 14, 22          | Network outage       | One of the 10 sites, the next one each time, can't reach the deployment server for the first 30 minutes. Its about 2,500 clients skip the phone homes they'd make then, so the connected forwarders line drops to about 355 to 405.        |
-| 07, 15, 23          | Recovery             | The clients that skipped a phone home connect again at their next one, about 1,250 `_dsclient` events in the first half hour. `fleet_canary` comes back, and its clients log `Download`/`Ok` and `Install`/`Ok` for `fleet_canary_inputs`. |
+| Hours (UTC)         | Scenario             | What happens                                                                                                                                                                                                                                 |
+| ------------------- | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 00, 08, 16          | Rollout              | A new version of `fleet_base` goes to one of the four deployment rings, `fleet_ring_1` to `fleet_ring_4`, the next ring each time. Its about 6,250 clients log `Download`/`Ok` and `Install`/`Ok`.                                           |
+| 01, 09, 17          | Server class removed | The about 1,250 clients in `fleet_canary` log `Uninstall`/`Ok` for `fleet_canary_inputs`.                                                                                                                                                    |
+| 02–03, 10–11, 18–19 | Failing install      | A new version of `fleet_blocked_inputs` fails on the about 500 clients in `fleet_blocked`. At both phone homes, each one logs `Download`/`Ok`, then `Install`/`Fail` with `Failed to untar archive=…`.                                       |
+| 04, 12, 20          | Install fixed        | The same clients log `Download`/`Ok` and `Install`/`Ok`.                                                                                                                                                                                     |
+| 06, 14, 22          | Network outage       | One of the 10 sites, the next one each time, can't reach the deployment server for the first 30 minutes. Its about 2,500 clients skip the phone homes they'd make then, so the connected forwarders line drops to about 355 to 405 a minute. |
+| 07, 15, 23          | Recovery             | The clients that skipped a phone home connect again at their next one, about 1,250 `_dsclient` events in the first half hour. `fleet_canary` comes back, and its clients log `Download`/`Ok` and `Install`/`Ok` for `fleet_canary_inputs`.   |
 
 Nothing happens in hours 05, 13 and 21. Once a day, at a random time between 03:00 and 06:00 in the
 time zone of the machine that runs the script, the deployment server restarts. The script prints the
@@ -377,15 +377,18 @@ AppInspect reports any failure or error.
     ├── GlobalStyles.ts          Makes the area below the Splunk bar fill the window
     ├── globals.d.ts             Type of __VIEW_LABELS__, the view labels that the build passes in
     ├── components/
-    │   ├── ConnectedForwardersChart/ Chart of the forwarders that phoned home in each minute
-    │   ├── DeploymentActivityChart/ Chart of the forwarders that installed, uninstalled or failed an app in each minute
-    │   ├── ForwarderReconnectsChart/ Chart of how many times forwarders connected again in each minute
-    │   └── RouterLink/          Splunk UI Link that opens pages through the router
+    │   ├── ConnectedForwardersChart/ Chart of the forwarders that phoned home in each bucket
+    │   ├── DeploymentActivityChart/ Chart of the forwarders that installed, uninstalled or failed an app in each bucket
+    │   ├── ForwarderReconnectsChart/ Chart of how many times forwarders connected again in each bucket
+    │   ├── RouterLink/          Splunk UI Link that opens pages through the router
+    │   └── TimeRangeControls/   Time range picker and resolution of the overview charts
     ├── testing/
+    │   ├── mockTimeParser.ts    Answers the time parser requests of the charts in tests
     │   ├── renderWithQueryClient.tsx Renders components in tests with a fresh query client
-    │   └── renderWithRouter.tsx Renders pages in tests with a router, an in-memory URL and a query client
+    │   ├── renderWithRouter.tsx Renders pages in tests with a router, an in-memory URL and a query client
+    │   └── SplunkwebConnectorMock.tsx Gives the time range picker its default presets in tests
     └── pages/
-        ├── overview/            Overview page: Overview.tsx, its styles, and test
+        ├── overview/            Overview page: Overview.tsx, its URL schema, styles, and test
         └── agents/              Agents page: Agents.tsx, its styles, and test
 ```
 
@@ -486,15 +489,52 @@ Tests need a query client too. `renderWithRouter` provides one, and `renderWithQ
 client with the same default options and query retries turned off, so a failing request shows its
 error right away.
 
+## Time range and resolution
+
+The overview page has two controls above the charts, and all three charts follow them:
+
+- The time range picker is `TimeRangeDropdown` from `@splunk/react-time-range`, the same picker as
+  on the Search page. `SplunkwebConnector` from the same package loads the presets from Splunk and
+  checks relative and absolute times as you type them. Real-time ranges are turned off, because the
+  charts run each search once.
+- The resolution is a `Select` with Auto and fixed bucket sizes from 1 minute to 1 week. Auto picks
+  the smallest size that gives at most 100 points for the time range. The menu dims the sizes that
+  give more than 1,440 points or fewer than 2, and says why.
+
+The defaults are Last 24 hours (`-24h@h` to `now`) and 1 hour. With forwarders that phone home once
+an hour, 1-hour buckets count every forwarder once, so the connected forwarders line shows the whole
+fleet. Buckets shorter than the phone home interval only count the forwarders whose turn falls in
+them.
+
+- The choice lives in the URL of the overview page, as `earliest`, `latest` and `resolution`, so a
+  reload or a shared link keeps it. `validateSearch` in `src/router.tsx` reads them with
+  `validateOverviewSearch` from `Overview.schema.ts`, and `stripSearchParams` leaves the defaults
+  out of the URL.
+- To know how long the range is, `TimeRangeControls.hooks.ts` asks Splunk's `search/timeparser` REST
+  endpoint for both ends of the range in epoch seconds (`output_time_format=%s`). TanStack Query
+  caches the answer per range, so the controls and the three charts share one request.
+- Each chart turns the resolution into a bucket size and passes it to its search as `span`. When the
+  bucket size from the URL gives too many or too few points for the range, the charts use Auto
+  instead. When you pick another range, a fixed resolution that doesn't fit it switches to Auto.
+- The searches ask for `count=0`, because a one-shot search returns only the first 100 rows by
+  default, and 7 days in 1-hour buckets are 169 rows.
+- The last bucket of a range that ends `now` is incomplete. On the connected forwarders chart, it
+  drops below the rest until the bucket is over.
+- Tests mock `SplunkwebConnector` with `src/testing/SplunkwebConnectorMock.tsx`, which passes the
+  default presets, and answer the time parser requests with `mockTimeParser` from
+  `src/testing/mockTimeParser.ts`.
+
 ## Connected forwarders chart
 
 The overview page shows `ConnectedForwardersChart`, a line chart of how many forwarders phoned home
-to the deployment server in each of the last 60 complete minutes. The deployment server writes one event per phone home to the `_dsphonehome` index, with the
-forwarder's GUID in the indexed field `data.clientId`, so the chart counts distinct GUIDs per minute:
+to the deployment server in each bucket of the [time range](#time-range-and-resolution). The
+deployment server writes one event per phone home to the `_dsphonehome` index, with the forwarder's
+GUID in the indexed field `data.clientId`, so the chart counts distinct GUIDs per bucket. `<span>`
+is the bucket size, such as `1h`:
 
 ```spl
-| tstats prestats=t dc(data.clientId) where index=_dsphonehome by _time span=1m
-| timechart span=1m dc(data.clientId) AS connected
+| tstats prestats=t dc(data.clientId) where index=_dsphonehome by _time span=<span>
+| timechart span=<span> dc(data.clientId) AS connected
 | fields - _span
 ```
 
@@ -510,30 +550,31 @@ runs:
 - It retries a failed search three times, about 7 seconds in total, before the card shows the error
   and a Try again button.
 
-- `timechart` fills minutes with no phone homes with `0`, so an outage shows as a drop. When no
-  forwarder phoned home in the whole hour, the search returns no rows, and the card says so instead
-  of drawing a chart.
+- `timechart` fills buckets with no phone homes with `0`, so an outage shows as a drop. When no
+  forwarder phoned home in the whole time range, the search returns no rows, and the card says so
+  instead of drawing a chart.
 - Only roles that can search internal indexes, such as `admin` (`srchIndexesAllowed = *;_*`), see
   phone homes. For `user` and `power`, the search returns no rows, so they see the same message,
   which names the index they need.
 - `_dsphonehome` keeps events for 7 days. Locally, it starts empty on every
   `docker compose up --renew-anon-volumes`.
 - `@splunk/visualizations` is large: it makes every page script about 1.4 MB gzipped, up from about
-  0.2 MB. The build inlines dynamic imports, so lazy loading doesn't split it out.
+  0.2 MB. The time range picker adds about 0.07 MB more. The build inlines dynamic imports, so lazy
+  loading doesn't split them out.
 - Tests mock `Line`, because jsdom draws nothing. `vitest.setup.ts` stubs `window.matchMedia`, which
   the chart libraries call when they load.
 
 ## Forwarder reconnects chart
 
 Below the connected forwarders chart, the overview page shows `ForwarderReconnectsChart`, a column
-chart of how many times forwarders connected to the deployment server again in each of the last 60
-complete minutes. The deployment server writes one event to the `_dsclient` index each time a
-forwarder connects, with the forwarder's GUID, name, version and address, so the chart counts those
-events per minute:
+chart of how many times forwarders connected to the deployment server again in each bucket of the
+time range. The deployment server writes one event to the `_dsclient` index each time a forwarder
+connects, with the forwarder's GUID, name, version and address, so the chart counts those events per
+bucket:
 
 ```spl
-| tstats prestats=t count where index=_dsclient by _time span=1m
-| timechart span=1m count AS reconnects
+| tstats prestats=t count where index=_dsclient by _time span=<span>
+| timechart span=<span> count AS reconnects
 | fields - _span
 ```
 
@@ -545,8 +586,8 @@ connected forwarders search, with the same caching and retries.
   an app. A new forwarder's first connection counts too.
 - After a gap in phone homes, forwarders don't always connect again, so the chart can miss the fleet
   coming back. The connected forwarders chart still shows it as a rise.
-- Most hours have no reconnects in a small fleet. Then the search returns no rows, and the card says
-  so instead of drawing a chart. The message also names the index, because roles that can't search
+- A small fleet often has no reconnects in a short time range. Then the search returns no rows, and
+  the card says so instead of drawing a chart. The message also names the index, because roles that can't search
   internal indexes, such as `user` and `power`, get no rows either.
 - The y-axis has a mark every 1 reconnect up to 5, every 2 up to 10 and every 5 up to 25. Above that,
   the chart spaces the marks itself. Without this, it labels small counts in steps such as 0.5 or 2.5.
@@ -556,13 +597,13 @@ connected forwarders search, with the same caching and retries.
 ## Deployment activity chart
 
 Below the reconnects chart, the overview page shows `DeploymentActivityChart`, a stacked column chart
-of how many forwarders installed, uninstalled or failed to deploy an app in each of the last 60
-complete minutes. The deployment server writes an event to the `_dsappevent` index for each step of a
+of how many forwarders installed, uninstalled or failed to deploy an app in each bucket of the time
+range. The deployment server writes an event to the `_dsappevent` index for each step of a
 deployment on each forwarder, with `data.action` (`Download`, `Install` or `Uninstall`) and
 `data.result` (`Ok` or `Fail`). The chart counts forwarders, not events:
 
 ```spl
-| tstats count where index=_dsappevent by _time span=1m data.clientId data.appName data.action data.result
+| tstats count where index=_dsappevent by _time span=<span> data.clientId data.appName data.action data.result
 | eval downloaded=if('data.action'="Download" AND 'data.result'="Ok", 1, 0)
 | eval installed=if('data.action'="Install" AND 'data.result'="Ok", 1, 0)
 | eval uninstalled=if('data.action'="Uninstall" AND 'data.result'="Ok", 1, 0)
@@ -572,7 +613,7 @@ deployment on each forwarder, with `data.action` (`Download`, `Install` or `Unin
 | eval installed=downloaded*installed
 | stats max(installed) AS installed max(uninstalled) AS uninstalled max(failed) AS failed
     by _time data.clientId
-| timechart span=1m sum(installed) AS installed sum(uninstalled) AS uninstalled sum(failed) AS failed
+| timechart span=<span> sum(installed) AS installed sum(uninstalled) AS uninstalled sum(failed) AS failed
 | fillnull value=0 installed uninstalled failed
 | fields - _span
 ```
@@ -582,17 +623,17 @@ chart searches.
 
 - A failed install repeats on every phone home: the forwarder writes a `Download` with `Ok` and an
   `Install` with `Fail` until someone fixes the problem. Counted as events, one stuck forwarder that
-  phones home every second shows as 60 failures a minute. The chart counts it once.
+  phones home every second shows as 60 failures a minute. The chart counts it once per bucket.
 - A forwarder counts as installed only when it downloaded and installed the same app in the same
-  minute. Forwarders also write an `Install` with `Ok` and no `Download` for apps they already have:
+  bucket. Forwarders also write an `Install` with `Ok` and no `Download` for apps they already have:
   after a reload of the deployment server, after a restart, and when the deployment server disables
   an app. Those don't change the app, so the chart leaves them out.
 - Any event whose result isn't `Ok` counts as failed.
-- A forwarder can count in more than one series in the same minute, for example when an install
+- A forwarder can count in more than one series in the same bucket, for example when an install
   fails and then succeeds a few seconds later. The column then adds up to more than the number of
   forwarders.
-- When no forwarder installed, uninstalled or failed in the whole hour, the card says so instead of
-  drawing a chart, also when the hour only has the events that the chart leaves out. The message
+- When no forwarder installed, uninstalled or failed in the whole time range, the card says so instead
+  of drawing a chart, also when the range only has the events that the chart leaves out. The message
   also names the index, because roles that can't search internal indexes get no rows.
 - The series colors are the `severityColorNormal`, `severityColorInfo` and `severityColorCritical`
   tokens of the Prisma theme in the user's color scheme, from `getTheme`. The 1CD theme gives these
