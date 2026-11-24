@@ -4,22 +4,22 @@ import { describe, it, expect } from 'vitest';
 import { renderWithRouter } from '../../testing/renderWithRouter';
 import Agents from './Agents';
 
-const OverviewPage = () => <h1>Overview page</h1>;
+const HomePage = () => <h1>Home page</h1>;
 
 describe('Agents', () => {
     it('renders the page heading', async () => {
-        renderWithRouter('/agents', { '/agents': Agents, '/overview': OverviewPage });
+        renderWithRouter('/agents', { '/agents': Agents, '/home': HomePage });
 
         expect(
             await screen.findByRole('heading', { level: 1, name: 'Agents' }),
         ).toBeInTheDocument();
     });
 
-    it('opens the overview page from its link', async () => {
-        renderWithRouter('/agents', { '/agents': Agents, '/overview': OverviewPage });
+    it('opens the home page from its link', async () => {
+        renderWithRouter('/agents', { '/agents': Agents, '/home': HomePage });
 
         await userEvent.click(await screen.findByRole('link', { name: 'Overview' }));
 
-        expect(await screen.findByRole('heading', { name: 'Overview page' })).toBeInTheDocument();
+        expect(await screen.findByRole('heading', { name: 'Home page' })).toBeInTheDocument();
     });
 });

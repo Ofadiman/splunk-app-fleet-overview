@@ -9,7 +9,7 @@ const TargetPage = () => <h1>Agents page</h1>;
 
 describe('RouterLink', () => {
     it('links to the path of the route', async () => {
-        renderWithRouter('/overview', { '/overview': StartPage, '/agents': TargetPage });
+        renderWithRouter('/home', { '/home': StartPage, '/agents': TargetPage });
 
         expect(await screen.findByRole('link', { name: 'Agents' })).toHaveAttribute(
             'href',
@@ -18,8 +18,8 @@ describe('RouterLink', () => {
     });
 
     it('opens the route in the app when clicked', async () => {
-        const { router } = renderWithRouter('/overview', {
-            '/overview': StartPage,
+        const { router } = renderWithRouter('/home', {
+            '/home': StartPage,
             '/agents': TargetPage,
         });
 

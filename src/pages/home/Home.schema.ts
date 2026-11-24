@@ -7,7 +7,7 @@ import {
 import { DEFAULT_TIME_RANGE } from '../../components/TimeRangeControls/TimeRangeControls.constants';
 import { resolutionSchema } from '../../components/TimeRangeControls/TimeRangeControls.schema';
 
-export const overviewSearchSchema = z.object({
+export const homeSearchSchema = z.object({
     earliest: z
         .union([z.string(), z.number().transform((value) => String(value))])
         .default(DEFAULT_TIME_RANGE.earliest)

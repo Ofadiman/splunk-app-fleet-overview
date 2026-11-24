@@ -9,20 +9,20 @@ import type { ForwarderSort } from '../../components/ProblemForwardersTable/Prob
 import RouterLink from '../../components/RouterLink/RouterLink';
 import TimeRangeControls from '../../components/TimeRangeControls/TimeRangeControls';
 import type { ChartTimeRange } from '../../components/TimeRangeControls/TimeRangeControls.types';
-import { overviewSearchSchema } from './Overview.schema';
-import { StyledCharts, StyledContent, StyledPage } from './Overview.styles';
+import { homeSearchSchema } from './Home.schema';
+import { StyledCharts, StyledContent, StyledPage } from './Home.styles';
 
-const Overview = () => {
-    const { sort, order, ...timeRange } = overviewSearchSchema.parse(useSearch({ strict: false }));
+const Home = () => {
+    const { sort, order, ...timeRange } = homeSearchSchema.parse(useSearch({ strict: false }));
     const navigate = useNavigate();
 
     const handleTimeRangeChange = (search: ChartTimeRange) => {
-        void navigate({ to: '/overview', search: { ...search, sort, order }, resetScroll: false });
+        void navigate({ to: '/home', search: { ...search, sort, order }, resetScroll: false });
     };
 
     const handleSortChange = ({ column, order: nextOrder }: ForwarderSort) => {
         void navigate({
-            to: '/overview',
+            to: '/home',
             search: { ...timeRange, sort: column, order: nextOrder },
             resetScroll: false,
         });
@@ -52,4 +52,4 @@ const Overview = () => {
     );
 };
 
-export default Overview;
+export default Home;

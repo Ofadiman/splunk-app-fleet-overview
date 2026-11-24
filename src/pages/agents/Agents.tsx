@@ -8,7 +8,7 @@ const Agents = () => (
         <SpotLight variant="page-top" intensity="medium" />
         <StyledContent>
             <Heading level={1}>Agents</Heading>
-            <RouterLink to="/overview" appearance="standalone">
+            <RouterLink to="/home" appearance="standalone">
                 Overview
             </RouterLink>
         </StyledContent>

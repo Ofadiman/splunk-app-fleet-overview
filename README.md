@@ -36,7 +36,7 @@ It started from `npx @splunk/create --mode=standalone` and adds the Splunk app p
     you in as `admin` with the password `password` and opens the app:
 
     ```
-    http://localhost:18000/en-US/account/insecurelogin?username=admin&password=password&return_to=/en-US/app/fleet_overview/overview
+    http://localhost:18000/en-US/account/insecurelogin?username=admin&password=password&return_to=/en-US/app/fleet_overview/home
     ```
 
     Bookmark it, because you log in again after every start and restart. Splunk's management port
@@ -385,7 +385,7 @@ AppInspect reports any failure or error.
 ├── splunk/                      Splunk app files, copied as-is into dist/fleet_overview/
 │   ├── default/app.conf
 │   ├── default/data/ui/nav/default.xml
-│   ├── default/data/ui/views/overview.xml
+│   ├── default/data/ui/views/home.xml
 │   ├── default/data/ui/views/agents.xml
 │   └── metadata/default.meta
 ├── AGENTS.md                    Conventions for coding agents: React component architecture
@@ -409,7 +409,7 @@ AppInspect reports any failure or error.
     │   ├── renderWithRouter.tsx Renders pages in tests with a router, an in-memory URL and a query client
     │   └── SplunkwebConnectorMock.tsx Gives the time range picker its default presets in tests
     └── pages/
-        ├── overview/            Overview page: Overview.tsx, its URL schema, styles, and test
+        ├── home/                Home page at /home, titled Overview: Home.tsx, its URL schema, styles, and test
         └── agents/              Agents page: Agents.tsx, its styles, and test
 ```
 
@@ -428,9 +428,11 @@ picks the page from the URL, so moving between pages inside the app doesn't relo
 route path matches a Splunk view, such as `/agents` for `agents.xml`, because Splunk only serves a
 page at a view's URL, with or without a query string:
 
-- A path with more segments, such as `/agents/123`, shows `{}` or Splunk's 404 page on reload. Put
-  details such as the selected agent in query parameters instead: `/agents?agent=123`.
-- Hash routes, such as `/overview#/agents`, don't survive logging in. Splunk keeps the path and the
+- A path with more segments doesn't load the page on reload or from a link. For one more segment,
+  such as `/agents/123`, Splunk answers with `{}` as JSON. For two or more, such as
+  `/agents/123/apps`, it shows its 404 page. Put details such as the selected agent in query
+  parameters instead: `/agents?agent=123`.
+- Hash routes, such as `/home#/agents`, don't survive logging in. Splunk keeps the path and the
   query string when it sends you back from the login page, but drops the `#` part.
 
 The router's `basepath` comes from `createURL` in `@splunk/splunk-utils/url`. It includes the
@@ -458,14 +460,14 @@ template puts in `<head>`.
 
 `renderPage` passes `hideAppBar: true` to `layout`, so pages render without the app bar, the bar
 that lists the views from the nav file. The Splunk bar stays. Links between pages have to be part
-of the page content. The nav file lists only the overview view, with `default="true"`, because its
+of the page content. The nav file lists only the home view, with `default="true"`, because its
 only remaining job is to set the page that opens at `/app/fleet_overview/`. Without the file,
 Splunk uses its system nav and opens the Search page there. Views load by their URL whether or not
 the nav file lists them.
 
 `show_in_nav = false` in `[ui]` of `splunk/default/app.conf` keeps the app out of the app list on
 the Splunk home page and out of the **Apps** menu in the Splunk bar. The app stays visible
-(`is_visible = true`), so its pages still open by URL, such as `/app/fleet_overview/overview`.
+(`is_visible = true`), so its pages still open by URL, such as `/app/fleet_overview/home`.
 With `is_visible = false`, Splunk would not open the app's pages at all.
 
 For links between pages, use `RouterLink` from `src/components/RouterLink/RouterLink.tsx`, such as
@@ -530,15 +532,15 @@ fleet. Buckets shorter than the phone home interval only count the forwarders wh
 them.
 
 - The choice lives in the URL of the overview page, as `earliest`, `latest` and `resolution`, so a
-  reload or a shared link keeps it. `overviewSearchSchema` in `Overview.schema.ts` is a
+  reload or a shared link keeps it. `homeSearchSchema` in `Home.schema.ts` is a
   [zod](https://zod.dev) schema that `src/router.tsx` passes to `validateSearch`. It turns epoch
   times, which the router reads as numbers, back into strings, and replaces a missing or unknown
   value with its default. The same schema keeps the table's sorted column and order, as `sort` and
   `order`. `stripSearchParams` leaves the defaults out of the URL: it takes them from
-  `overviewSearchSchema.parse({})`, which fills in every default.
+  `homeSearchSchema.parse({})`, which fills in every default.
 - Changing the time range, the resolution or the table's sort keeps your place on the page. After
   every navigation, TanStack Router scrolls the window back to the top unless it gets
-  `resetScroll: false`, so `Overview.tsx` passes it to both of its `navigate` calls. Links to
+  `resetScroll: false`, so `Home.tsx` passes it to both of its `navigate` calls. Links to
   other pages keep the default and open at the top.
 - To know how long the range is, `TimeRangeControls.hooks.ts` asks Splunk's `search/timeparser` REST
   endpoint for both ends of the range in epoch seconds (`output_time_format=%s`). TanStack Query

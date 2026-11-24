@@ -7,8 +7,8 @@ import {
 import { app } from '@splunk/splunk-utils/config';
 import { createURL } from '@splunk/splunk-utils/url';
 import Agents from './pages/agents/Agents';
-import Overview from './pages/overview/Overview';
-import { overviewSearchSchema } from './pages/overview/Overview.schema';
+import Home from './pages/home/Home';
+import { homeSearchSchema } from './pages/home/Home.schema';
 
 declare module '@tanstack/react-router' {
     interface Register {
@@ -30,12 +30,12 @@ const rootRoute = createRootRoute({
     onStay: setViewTitle,
 });
 
-const overviewRoute = createRoute({
+const homeRoute = createRoute({
     getParentRoute: () => rootRoute,
-    path: '/overview',
-    component: Overview,
-    validateSearch: overviewSearchSchema,
-    search: { middlewares: [stripSearchParams(overviewSearchSchema.parse({}))] },
+    path: '/home',
+    component: Home,
+    validateSearch: homeSearchSchema,
+    search: { middlewares: [stripSearchParams(homeSearchSchema.parse({}))] },
 });
 
 const agentsRoute = createRoute({
@@ -44,7 +44,7 @@ const agentsRoute = createRoute({
     component: Agents,
 });
 
-const routeTree = rootRoute.addChildren([overviewRoute, agentsRoute]);
+const routeTree = rootRoute.addChildren([homeRoute, agentsRoute]);
 
 export const router = createRouter({
     routeTree,

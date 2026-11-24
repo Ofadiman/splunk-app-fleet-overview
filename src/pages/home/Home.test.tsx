@@ -4,7 +4,7 @@ import { oneShot } from '@splunk/splunk-utils/search';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DAY_SECONDS, mockTimeParser } from '../../testing/mockTimeParser';
 import { renderWithRouter } from '../../testing/renderWithRouter';
-import Overview from './Overview';
+import Home from './Home';
 
 vi.mock('@splunk/splunk-utils/search', () => ({ oneShot: vi.fn(() => new Promise(() => {})) }));
 vi.mock(
@@ -24,7 +24,7 @@ const searchedWith = (expected: Record<string, unknown>) =>
         ),
     );
 
-describe('Overview', () => {
+describe('Home', () => {
     beforeEach(() => {
         vi.mocked(oneShot).mockClear();
         mockTimeParser({ '-7d@h': 7 * DAY_SECONDS });
@@ -35,7 +35,7 @@ describe('Overview', () => {
     });
 
     it('renders the page heading', async () => {
-        renderWithRouter('/overview', { '/overview': Overview, '/agents': AgentsPage });
+        renderWithRouter('/home', { '/home': Home, '/agents': AgentsPage });
 
         expect(
             await screen.findByRole('heading', { level: 1, name: 'Overview' }),
@@ -43,7 +43,7 @@ describe('Overview', () => {
     });
 
     it('shows the connected forwarders chart', async () => {
-        renderWithRouter('/overview', { '/overview': Overview, '/agents': AgentsPage });
+        renderWithRouter('/home', { '/home': Home, '/agents': AgentsPage });
 
         expect(
             await screen.findByRole('heading', { level: 2, name: 'Connected forwarders' }),
@@ -51,7 +51,7 @@ describe('Overview', () => {
     });
 
     it('shows the forwarder reconnects chart', async () => {
-        renderWithRouter('/overview', { '/overview': Overview, '/agents': AgentsPage });
+        renderWithRouter('/home', { '/home': Home, '/agents': AgentsPage });
 
         expect(
             await screen.findByRole('heading', { level: 2, name: 'Forwarder reconnects' }),
@@ -59,7 +59,7 @@ describe('Overview', () => {
     });
 
     it('shows the deployment activity chart', async () => {
-        renderWithRouter('/overview', { '/overview': Overview, '/agents': AgentsPage });
+        renderWithRouter('/home', { '/home': Home, '/agents': AgentsPage });
 
         expect(
             await screen.findByRole('heading', { level: 2, name: 'Deployment activity' }),
@@ -67,7 +67,7 @@ describe('Overview', () => {
     });
 
     it('shows the problem forwarders table', async () => {
-        renderWithRouter('/overview', { '/overview': Overview, '/agents': AgentsPage });
+        renderWithRouter('/home', { '/home': Home, '/agents': AgentsPage });
 
         expect(
             await screen.findByRole('heading', { level: 2, name: 'Problem forwarders' }),
@@ -75,7 +75,7 @@ describe('Overview', () => {
     });
 
     it('opens the agents page from its link', async () => {
-        renderWithRouter('/overview', { '/overview': Overview, '/agents': AgentsPage });
+        renderWithRouter('/home', { '/home': Home, '/agents': AgentsPage });
 
         await userEvent.click(await screen.findByRole('link', { name: 'Agents' }));
 
@@ -83,7 +83,7 @@ describe('Overview', () => {
     });
 
     it('shows the last 24 hours in 1-hour buckets by default', async () => {
-        renderWithRouter('/overview', { '/overview': Overview, '/agents': AgentsPage });
+        renderWithRouter('/home', { '/home': Home, '/agents': AgentsPage });
 
         expect(await screen.findByRole('button', { name: 'Last 24 hours' })).toBeVisible();
         expect(screen.getByRole('combobox', { name: 'Resolution: 1 hour' })).toBeVisible();
@@ -95,8 +95,8 @@ describe('Overview', () => {
     });
 
     it('reads the time range and the resolution from the URL', async () => {
-        renderWithRouter('/overview?earliest=-7d%40h&latest=now&resolution=auto', {
-            '/overview': Overview,
+        renderWithRouter('/home?earliest=-7d%40h&latest=now&resolution=auto', {
+            '/home': Home,
             '/agents': AgentsPage,
         });
 
@@ -110,8 +110,8 @@ describe('Overview', () => {
     });
 
     it('keeps the chosen resolution in the URL and searches with it', async () => {
-        const { router } = renderWithRouter('/overview', {
-            '/overview': Overview,
+        const { router } = renderWithRouter('/home', {
+            '/home': Home,
             '/agents': AgentsPage,
         });
 
@@ -125,8 +125,8 @@ describe('Overview', () => {
     });
 
     it('reads epoch times from the URL as times', async () => {
-        renderWithRouter('/overview?earliest=1795219200&latest=1795305600', {
-            '/overview': Overview,
+        renderWithRouter('/home?earliest=1795219200&latest=1795305600', {
+            '/home': Home,
             '/agents': AgentsPage,
         });
 
@@ -134,8 +134,8 @@ describe('Overview', () => {
     });
 
     it('falls back to the default resolution when the URL has an unknown one', async () => {
-        renderWithRouter('/overview?resolution=fortnightly', {
-            '/overview': Overview,
+        renderWithRouter('/home?resolution=fortnightly', {
+            '/home': Home,
             '/agents': AgentsPage,
         });
 
@@ -144,7 +144,7 @@ describe('Overview', () => {
     });
 
     it('lists the forwarders with the most failing apps first by default', async () => {
-        renderWithRouter('/overview', { '/overview': Overview, '/agents': AgentsPage });
+        renderWithRouter('/home', { '/home': Home, '/agents': AgentsPage });
 
         expect(await screen.findByRole('columnheader', { name: /^Failing apps/ })).toHaveAttribute(
             'aria-sort',
@@ -156,8 +156,8 @@ describe('Overview', () => {
     });
 
     it('reads the sorted column and the order from the URL', async () => {
-        renderWithRouter('/overview?sort=reconnects&order=asc', {
-            '/overview': Overview,
+        renderWithRouter('/home?sort=reconnects&order=asc', {
+            '/home': Home,
             '/agents': AgentsPage,
         });
 
@@ -171,8 +171,8 @@ describe('Overview', () => {
     });
 
     it('keeps the sorted column in the URL and searches with it', async () => {
-        const { router } = renderWithRouter('/overview', {
-            '/overview': Overview,
+        const { router } = renderWithRouter('/home', {
+            '/home': Home,
             '/agents': AgentsPage,
         });
 
@@ -190,8 +190,8 @@ describe('Overview', () => {
     });
 
     it('keeps the sorted column when you change the resolution', async () => {
-        const { router } = renderWithRouter('/overview?sort=reconnects&order=asc', {
-            '/overview': Overview,
+        const { router } = renderWithRouter('/home?sort=reconnects&order=asc', {
+            '/home': Home,
             '/agents': AgentsPage,
         });
 
@@ -208,8 +208,8 @@ describe('Overview', () => {
     });
 
     it('keeps the time range when you sort by another column', async () => {
-        const { router } = renderWithRouter('/overview?earliest=-7d%40h&latest=now&resolution=6h', {
-            '/overview': Overview,
+        const { router } = renderWithRouter('/home?earliest=-7d%40h&latest=now&resolution=6h', {
+            '/home': Home,
             '/agents': AgentsPage,
         });
 
@@ -226,7 +226,7 @@ describe('Overview', () => {
     });
 
     it('stays where you scrolled to when you sort by another column', async () => {
-        renderWithRouter('/overview', { '/overview': Overview, '/agents': AgentsPage });
+        renderWithRouter('/home', { '/home': Home, '/agents': AgentsPage });
         const reconnects = await screen.findByRole('button', { name: /^Reconnects/ });
         vi.mocked(window.scrollTo).mockClear();
 
@@ -243,8 +243,8 @@ describe('Overview', () => {
     });
 
     it('stays where you scrolled to when you change the resolution', async () => {
-        const { router } = renderWithRouter('/overview', {
-            '/overview': Overview,
+        const { router } = renderWithRouter('/home', {
+            '/home': Home,
             '/agents': AgentsPage,
         });
         const resolution = await screen.findByRole('combobox', { name: 'Resolution: 1 hour' });
@@ -261,8 +261,8 @@ describe('Overview', () => {
     });
 
     it('falls back to the default sort when the URL has an unknown one', async () => {
-        renderWithRouter('/overview?sort=hostname&order=sideways', {
-            '/overview': Overview,
+        renderWithRouter('/home?sort=hostname&order=sideways', {
+            '/home': Home,
             '/agents': AgentsPage,
         });
 
