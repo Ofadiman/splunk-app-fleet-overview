@@ -9,7 +9,10 @@ import type { ChartTimeRange } from '../TimeRangeControls/TimeRangeControls.type
 import DeploymentActivityChart from './DeploymentActivityChart';
 
 vi.mock('@splunk/splunk-utils/search', () => ({ oneShot: vi.fn() }));
-vi.mock('@splunk/visualizations/Column', () => ({ default: vi.fn(() => null) }));
+vi.mock('@splunk/visualizations/Column', () => ({
+    __esModule: true,
+    default: vi.fn(() => null),
+}));
 
 const minutes = ['2026-11-14T18:16:00.000+00:00', '2026-11-14T18:17:00.000+00:00'];
 

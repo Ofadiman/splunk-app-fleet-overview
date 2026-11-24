@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { oneShot } from '@splunk/splunk-utils/search';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -282,19 +282,32 @@ describe('ProblemForwardersTable', () => {
     });
 
     it('scrolls the list back to its first row when it shows another sort', async () => {
+        const otherForwarders = Array.from({ length: 20 }, (_, index) => ({
+            ...stuck,
+            clientId: `client-${index}`,
+            name: `forwarder-${index}`,
+        }));
         vi.mocked(oneShot)
-            .mockResolvedValueOnce(searchResults([stuck, crashing]))
-            .mockResolvedValueOnce(searchResults([crashing, stuck]));
+            .mockResolvedValueOnce(searchResults([stuck, crashing, ...otherForwarders]))
+            .mockResolvedValueOnce(searchResults([crashing, stuck, ...otherForwarders]));
 
         renderOnPage(SortableTable);
-        await waitFor(() => expect(bodyRows()).toHaveLength(2));
+        await waitFor(() => expect(bodyRows()).toHaveLength(otherForwarders.length + 2));
         const list = screen.getByRole('table').parentElement as HTMLElement;
+        const scrolled = new Promise<void>((resolve) => {
+            list.addEventListener('scroll', () => resolve(), { once: true });
+        });
         list.scrollTop = 300;
-        fireEvent.scroll(list);
+        expect(list.scrollTop).toBeGreaterThan(0);
+        await scrolled;
         await userEvent.click(sortButton('Reconnects'));
 
         await waitFor(() =>
-            expect(bodyRows().map((row) => cellTexts(row)[0])).toEqual(['vesemir', 'triss']),
+            expect(
+                bodyRows()
+                    .slice(0, 2)
+                    .map((row) => cellTexts(row)[0]),
+            ).toEqual(['vesemir', 'triss']),
         );
         expect(list.scrollTop).toBe(0);
     });

@@ -9,7 +9,10 @@ import type { ChartTimeRange } from '../TimeRangeControls/TimeRangeControls.type
 import ForwarderReconnectsChart from './ForwarderReconnectsChart';
 
 vi.mock('@splunk/splunk-utils/search', () => ({ oneShot: vi.fn() }));
-vi.mock('@splunk/visualizations/Column', () => ({ default: vi.fn(() => null) }));
+vi.mock('@splunk/visualizations/Column', () => ({
+    __esModule: true,
+    default: vi.fn(() => null),
+}));
 
 const searchResults = (times: string[], counts: string[]) => ({
     preview: false,

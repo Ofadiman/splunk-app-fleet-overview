@@ -9,7 +9,10 @@ import type { ChartTimeRange } from '../TimeRangeControls/TimeRangeControls.type
 import AgentPhoneHomesChart from './AgentPhoneHomesChart';
 
 vi.mock('@splunk/splunk-utils/search', () => ({ oneShot: vi.fn() }));
-vi.mock('@splunk/visualizations/Column', () => ({ default: vi.fn(() => null) }));
+vi.mock('@splunk/visualizations/Column', () => ({
+    __esModule: true,
+    default: vi.fn(() => null),
+}));
 
 const guid = '316BB7CA-93DC-4C3C-BE06-D154E9A38A0C';
 

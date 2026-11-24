@@ -54,9 +54,11 @@ describe('TimeRangeControls', () => {
 
         await openResolutions();
 
-        expect(
-            await screen.findByRole('option', { name: /^Auto.*15 minutes for this time range/ }),
-        ).toBeVisible();
+        await waitFor(() =>
+            expect(
+                screen.getByRole('option', { name: /^Auto.*15 minutes for this time range/ }),
+            ).toBeVisible(),
+        );
     });
 
     it('dims the resolutions that give too many points or too few', async () => {
@@ -121,7 +123,9 @@ describe('TimeRangeControls', () => {
 
         await userEvent.click(screen.getByRole('button', { name: 'Last 24 hours' }));
 
-        expect(await screen.findByRole('button', { name: 'Last 7 days' })).toBeVisible();
+        await waitFor(() =>
+            expect(screen.getByRole('button', { name: 'Last 7 days' })).toBeVisible(),
+        );
         expect(screen.queryByRole('button', { name: '1 minute window' })).not.toBeInTheDocument();
     });
 });

@@ -338,16 +338,19 @@ Run `pnpm dev` to rebuild `dist/fleet_overview/` on every change, then refresh t
 - `pnpm dev` - Rebuild the app into `dist/fleet_overview/` on every change
 - `pnpm build` - Type-check and build the app into `dist/fleet_overview/`
 - `pnpm package` - Build and create `dist/fleet_overview.tar.gz`, installable in Splunk
-- `pnpm test` - Run tests once
-- `pnpm test:watch` - Run tests in watch mode
+- `pnpm test:chrome` / `pnpm test:edge` - Run tests in the installed Google Chrome or Microsoft Edge
+- `pnpm test:firefox` / `pnpm test:webkit` - Run tests in Playwright's Firefox or WebKit builds
 - `pnpm format` / `pnpm format:verify` - Format code with Prettier, or check formatting
 - `pnpm simulate` - Backfill and keep writing the events of 25,000
   [simulated forwarders](#simulated-fleet) into `.simulation/`
 - `mise run appinspect` - Package the app and validate it with Splunk AppInspect
 
-Everything these scripts generate goes to `dist/`, which git ignores: the app in
-`dist/fleet_overview/`, the package `dist/fleet_overview.tar.gz`, and the AppInspect report
-`dist/appinspect.json`. The only exception is `pnpm simulate`, which writes to `.simulation/`, which
+Install Chrome and Edge separately. Download Playwright's Firefox and WebKit builds with
+`pnpm exec playwright install firefox webkit`. The WebKit command tests the engine Safari uses.
+
+Generated files go to `dist/`, which git ignores. This includes the app in `dist/fleet_overview/`,
+the package `dist/fleet_overview.tar.gz`, the AppInspect report `dist/appinspect.json`, and test
+failure screenshots in `dist/test-attachments/`. `pnpm simulate` writes to `.simulation/`, which
 git ignores too.
 
 ## Validating with AppInspect
@@ -618,8 +621,7 @@ runs:
 - `@splunk/visualizations` is large: it makes every page script about 1.4 MB gzipped, up from about
   0.2 MB. The time range picker adds about 0.07 MB more. The build inlines dynamic imports, so lazy
   loading doesn't split them out.
-- Tests mock `Line`, because jsdom draws nothing. `vitest.setup.ts` stubs `window.matchMedia`, which
-  the chart libraries call when they load.
+- Tests mock `Line` to check the data and options passed to the chart.
 
 ## Forwarder reconnects chart
 

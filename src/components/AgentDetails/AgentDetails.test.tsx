@@ -9,7 +9,10 @@ import type { ChartTimeRange } from '../TimeRangeControls/TimeRangeControls.type
 import AgentDetails from './AgentDetails';
 
 vi.mock('@splunk/splunk-utils/search', () => ({ oneShot: vi.fn() }));
-vi.mock('@splunk/visualizations/Column', () => ({ default: vi.fn(() => null) }));
+vi.mock('@splunk/visualizations/Column', () => ({
+    __esModule: true,
+    default: vi.fn(() => null),
+}));
 vi.mock(
     '@splunk/react-time-range/SplunkwebConnector',
     () => import('../../testing/SplunkwebConnectorMock'),
@@ -19,7 +22,7 @@ const guid = '316BB7CA-93DC-4C3C-BE06-D154E9A38A0C';
 
 const timeRange: ChartTimeRange = { earliest: '-24h@h', latest: 'now', resolution: '1h' };
 
-const secondsAgo = (seconds: number) => Math.round(Date.now() / 1000 - seconds);
+const secondsAgo = (seconds: number) => Math.floor(Date.now() / 1000) - seconds;
 
 const identity = {
     name: 'triss',

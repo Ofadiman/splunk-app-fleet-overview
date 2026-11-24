@@ -24,6 +24,12 @@ const searchedWith = (expected: Record<string, unknown>) =>
         ),
     );
 
+const renderHome = async (initialPath = '/home') => {
+    const rendered = renderWithRouter(initialPath, { '/home': Home, '/agents': AgentsPage });
+    await searchedWith({ search: expect.stringContaining('| timechart ') });
+    return rendered;
+};
+
 describe('Home', () => {
     beforeEach(() => {
         vi.mocked(oneShot).mockClear();
@@ -35,7 +41,7 @@ describe('Home', () => {
     });
 
     it('renders the page heading', async () => {
-        renderWithRouter('/home', { '/home': Home, '/agents': AgentsPage });
+        await renderHome();
 
         expect(
             await screen.findByRole('heading', { level: 1, name: 'Overview' }),
@@ -43,7 +49,7 @@ describe('Home', () => {
     });
 
     it('shows the connected forwarders chart', async () => {
-        renderWithRouter('/home', { '/home': Home, '/agents': AgentsPage });
+        await renderHome();
 
         expect(
             await screen.findByRole('heading', { level: 2, name: 'Connected forwarders' }),
@@ -51,7 +57,7 @@ describe('Home', () => {
     });
 
     it('shows the forwarder reconnects chart', async () => {
-        renderWithRouter('/home', { '/home': Home, '/agents': AgentsPage });
+        await renderHome();
 
         expect(
             await screen.findByRole('heading', { level: 2, name: 'Forwarder reconnects' }),
@@ -59,7 +65,7 @@ describe('Home', () => {
     });
 
     it('shows the deployment activity chart', async () => {
-        renderWithRouter('/home', { '/home': Home, '/agents': AgentsPage });
+        await renderHome();
 
         expect(
             await screen.findByRole('heading', { level: 2, name: 'Deployment activity' }),
@@ -67,7 +73,7 @@ describe('Home', () => {
     });
 
     it('shows the problem forwarders table', async () => {
-        renderWithRouter('/home', { '/home': Home, '/agents': AgentsPage });
+        await renderHome();
 
         expect(
             await screen.findByRole('heading', { level: 2, name: 'Problem forwarders' }),
@@ -75,7 +81,7 @@ describe('Home', () => {
     });
 
     it('shows the last 24 hours in 1-hour buckets by default', async () => {
-        renderWithRouter('/home', { '/home': Home, '/agents': AgentsPage });
+        await renderHome();
 
         expect(await screen.findByRole('button', { name: 'Last 24 hours' })).toBeVisible();
         expect(screen.getByRole('combobox', { name: 'Resolution: 1 hour' })).toBeVisible();
@@ -87,10 +93,7 @@ describe('Home', () => {
     });
 
     it('reads the time range and the resolution from the URL', async () => {
-        renderWithRouter('/home?earliest=-7d%40h&latest=now&resolution=auto', {
-            '/home': Home,
-            '/agents': AgentsPage,
-        });
+        await renderHome('/home?earliest=-7d%40h&latest=now&resolution=auto');
 
         expect(await screen.findByRole('button', { name: 'Last 7 days' })).toBeVisible();
         expect(screen.getByRole('combobox', { name: 'Resolution: Auto' })).toBeVisible();
@@ -102,10 +105,7 @@ describe('Home', () => {
     });
 
     it('keeps the chosen resolution in the URL and searches with it', async () => {
-        const { router } = renderWithRouter('/home', {
-            '/home': Home,
-            '/agents': AgentsPage,
-        });
+        const { router } = await renderHome();
 
         await userEvent.click(await screen.findByRole('combobox', { name: 'Resolution: 1 hour' }));
         await userEvent.click(await screen.findByRole('option', { name: /^15 minutes/ }));
@@ -117,26 +117,20 @@ describe('Home', () => {
     });
 
     it('reads epoch times from the URL as times', async () => {
-        renderWithRouter('/home?earliest=1795219200&latest=1795305600', {
-            '/home': Home,
-            '/agents': AgentsPage,
-        });
+        await renderHome('/home?earliest=1795219200&latest=1795305600');
 
         await searchedWith({ earliest_time: '1795219200', latest_time: '1795305600' });
     });
 
     it('falls back to the default resolution when the URL has an unknown one', async () => {
-        renderWithRouter('/home?resolution=fortnightly', {
-            '/home': Home,
-            '/agents': AgentsPage,
-        });
+        await renderHome('/home?resolution=fortnightly');
 
         expect(await screen.findByRole('combobox', { name: 'Resolution: 1 hour' })).toBeVisible();
         await searchedWith({ search: expect.stringContaining('span=1h') });
     });
 
     it('lists the forwarders with the most failing apps first by default', async () => {
-        renderWithRouter('/home', { '/home': Home, '/agents': AgentsPage });
+        await renderHome();
 
         expect(await screen.findByRole('columnheader', { name: /^Failing apps/ })).toHaveAttribute(
             'aria-sort',
@@ -148,10 +142,7 @@ describe('Home', () => {
     });
 
     it('reads the sorted column and the order from the URL', async () => {
-        renderWithRouter('/home?sort=reconnects&order=asc', {
-            '/home': Home,
-            '/agents': AgentsPage,
-        });
+        await renderHome('/home?sort=reconnects&order=asc');
 
         expect(await screen.findByRole('columnheader', { name: /^Reconnects/ })).toHaveAttribute(
             'aria-sort',
@@ -163,10 +154,7 @@ describe('Home', () => {
     });
 
     it('keeps the sorted column in the URL and searches with it', async () => {
-        const { router } = renderWithRouter('/home', {
-            '/home': Home,
-            '/agents': AgentsPage,
-        });
+        const { router } = await renderHome();
 
         await userEvent.click(await screen.findByRole('button', { name: /^Failing hours/ }));
 
@@ -182,10 +170,7 @@ describe('Home', () => {
     });
 
     it('keeps the sorted column when you change the resolution', async () => {
-        const { router } = renderWithRouter('/home?sort=reconnects&order=asc', {
-            '/home': Home,
-            '/agents': AgentsPage,
-        });
+        const { router } = await renderHome('/home?sort=reconnects&order=asc');
 
         await userEvent.click(await screen.findByRole('combobox', { name: 'Resolution: 1 hour' }));
         await userEvent.click(await screen.findByRole('option', { name: /^15 minutes/ }));
@@ -200,10 +185,7 @@ describe('Home', () => {
     });
 
     it('keeps the time range when you sort by another column', async () => {
-        const { router } = renderWithRouter('/home?earliest=-7d%40h&latest=now&resolution=6h', {
-            '/home': Home,
-            '/agents': AgentsPage,
-        });
+        const { router } = await renderHome('/home?earliest=-7d%40h&latest=now&resolution=6h');
 
         await userEvent.click(await screen.findByRole('button', { name: /^Reconnects/ }));
 
@@ -218,9 +200,11 @@ describe('Home', () => {
     });
 
     it('stays where you scrolled to when you sort by another column', async () => {
-        renderWithRouter('/home', { '/home': Home, '/agents': AgentsPage });
+        await renderHome();
         const reconnects = await screen.findByRole('button', { name: /^Reconnects/ });
-        vi.mocked(window.scrollTo).mockClear();
+        reconnects.scrollIntoView({ block: 'center' });
+        const scrollPosition = window.scrollY;
+        expect(scrollPosition).toBeGreaterThan(0);
 
         await userEvent.click(reconnects);
 
@@ -230,17 +214,15 @@ describe('Home', () => {
                 'descending',
             ),
         );
-        await new Promise((resolve) => setTimeout(resolve, 50));
-        expect(window.scrollTo).not.toHaveBeenCalled();
+        expect(window.scrollY).toBe(scrollPosition);
     });
 
     it('stays where you scrolled to when you change the resolution', async () => {
-        const { router } = renderWithRouter('/home', {
-            '/home': Home,
-            '/agents': AgentsPage,
-        });
+        const { router } = await renderHome();
         const resolution = await screen.findByRole('combobox', { name: 'Resolution: 1 hour' });
-        vi.mocked(window.scrollTo).mockClear();
+        window.scrollTo(0, 32);
+        const scrollPosition = window.scrollY;
+        expect(scrollPosition).toBeGreaterThan(0);
 
         await userEvent.click(resolution);
         await userEvent.click(await screen.findByRole('option', { name: /^15 minutes/ }));
@@ -248,15 +230,11 @@ describe('Home', () => {
         await waitFor(() =>
             expect(router.state.location.search).toMatchObject({ resolution: '15m' }),
         );
-        await new Promise((resolve) => setTimeout(resolve, 50));
-        expect(window.scrollTo).not.toHaveBeenCalled();
+        expect(window.scrollY).toBe(scrollPosition);
     });
 
     it('falls back to the default sort when the URL has an unknown one', async () => {
-        renderWithRouter('/home?sort=hostname&order=sideways', {
-            '/home': Home,
-            '/agents': AgentsPage,
-        });
+        await renderHome('/home?sort=hostname&order=sideways');
 
         expect(await screen.findByRole('columnheader', { name: /^Failing apps/ })).toHaveAttribute(
             'aria-sort',

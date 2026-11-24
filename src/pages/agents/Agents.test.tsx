@@ -7,7 +7,10 @@ import { renderWithRouter } from '../../testing/renderWithRouter';
 import Agents from './Agents';
 
 vi.mock('@splunk/splunk-utils/search', () => ({ oneShot: vi.fn() }));
-vi.mock('@splunk/visualizations/Column', () => ({ default: vi.fn(() => null) }));
+vi.mock('@splunk/visualizations/Column', () => ({
+    __esModule: true,
+    default: vi.fn(() => null),
+}));
 vi.mock(
     '@splunk/react-time-range/SplunkwebConnector',
     () => import('../../testing/SplunkwebConnectorMock'),

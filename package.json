@@ -10,8 +10,10 @@
     "package": "pnpm run build && node scripts/package.ts",
     "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,css,json}\"",
     "format:verify": "prettier --list-different \"src/**/*.{ts,tsx,js,jsx,css,json}\"",
-    "test": "vitest run",
-    "test:watch": "vitest",
+    "test:chrome": "vitest run --project=chrome",
+    "test:edge": "vitest run --project=edge",
+    "test:firefox": "vitest run --project=firefox",
+    "test:webkit": "vitest run --project=webkit",
     "simulate": "node scripts/simulate.ts"
   },
   "dependencies": {
@@ -47,13 +49,14 @@
     "@types/react-dom": "^18.3.1",
     "@types/styled-components": "^5.1.34",
     "@vitejs/plugin-react-swc": "^4.2.2",
+    "@vitest/browser-playwright": "^5.1.1",
     "@xmldom/xmldom": "^0.9.12",
-    "jsdom": "^29.0.1",
     "ora": "^10.0.0",
+    "playwright": "^1.65.1",
     "prettier": "^3.6.2",
     "tar": "^7.5.22",
     "typescript": "^6.0.3",
     "vite": "^7.3.2",
-    "vitest": "^2.1.8"
+    "vitest": "^5.1.1"
   }
 }
