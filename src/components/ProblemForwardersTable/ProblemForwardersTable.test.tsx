@@ -3,14 +3,14 @@ import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { oneShot } from '@splunk/splunk-utils/search';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { renderWithQueryClient } from '../../testing/renderWithQueryClient';
-import type { TimeRange } from '../TimeRangeControls/TimeRangeControls.types';
+import { renderWithRouter } from '../../testing/renderWithRouter';
+import type { ChartTimeRange } from '../TimeRangeControls/TimeRangeControls.types';
 import ProblemForwardersTable from './ProblemForwardersTable';
 import type { ForwarderSort } from './ProblemForwardersTable.types';
 
 vi.mock('@splunk/splunk-utils/search', () => ({ oneShot: vi.fn() }));
 
-const timeRange: TimeRange = { earliest: '-24h@h', latest: 'now' };
+const timeRange: ChartTimeRange = { earliest: '-4h@m', latest: 'now', resolution: '15m' };
 
 const stuck = {
     clientId: '316BB7CA-93DC-4C3C-BE06-D154E9A38A0C',
@@ -40,12 +40,17 @@ const searchResults = (rows: Record<string, string>[], total = rows.length) => (
     results: rows.map((row) => ({ ...row, total: String(total) })),
 });
 
+const AgentsPage = () => <h1>Agents page</h1>;
+
+const renderOnPage = (Page: () => JSX.Element) =>
+    renderWithRouter('/home', { '/home': Page, '/agents': AgentsPage });
+
 const renderTable = (sort: ForwarderSort = { column: 'failingApps', order: 'desc' }) => {
     const onSortChange = vi.fn();
-    renderWithQueryClient(
-        <ProblemForwardersTable timeRange={timeRange} sort={sort} onSortChange={onSortChange} />,
-    );
-    return { onSortChange };
+    const rendered = renderOnPage(() => (
+        <ProblemForwardersTable timeRange={timeRange} sort={sort} onSortChange={onSortChange} />
+    ));
+    return { onSortChange, ...rendered };
 };
 
 const SortableTable = () => {
@@ -124,7 +129,23 @@ describe('ProblemForwardersTable', () => {
         expect(screen.queryByText('Loading problem forwarders')).not.toBeInTheDocument();
     });
 
-    it('shows a dash for a name, host or version that the search doesn’t know', async () => {
+    it('links each forwarder to its agent page with the same time range', async () => {
+        vi.mocked(oneShot).mockResolvedValue(searchResults([stuck, crashing]));
+
+        const { router } = renderTable();
+        await userEvent.click(await screen.findByRole('link', { name: 'triss' }));
+
+        expect(await screen.findByRole('heading', { name: 'Agents page' })).toBeInTheDocument();
+        expect(router.state.location.pathname).toBe('/agents');
+        expect(router.state.location.search).toEqual({
+            guid: stuck.clientId,
+            earliest: '-4h@m',
+            latest: 'now',
+            resolution: '15m',
+        });
+    });
+
+    it('shows the GUID when the name is unknown, and a dash for an unknown host or version', async () => {
         vi.mocked(oneShot).mockResolvedValue(
             searchResults([
                 { clientId: stuck.clientId, failingApps: '1', failingHours: '3', reconnects: '0' },
@@ -134,7 +155,7 @@ describe('ProblemForwardersTable', () => {
         renderTable();
 
         await waitFor(() => expect(bodyRows()).toHaveLength(1));
-        expect(cellTexts(bodyRows()[0])).toEqual(['—', '—', '—', '1', '3', '0']);
+        expect(cellTexts(bodyRows()[0])).toEqual([stuck.clientId, '—', '—', '1', '3', '0']);
     });
 
     it('says it shows every forwarder when the search found no more', async () => {
@@ -229,7 +250,7 @@ describe('ProblemForwardersTable', () => {
             .mockResolvedValueOnce(searchResults([stuck, crashing]))
             .mockReturnValueOnce(new Promise(() => {}));
 
-        renderWithQueryClient(<SortableTable />);
+        renderOnPage(SortableTable);
         await waitFor(() => expect(bodyRows()).toHaveLength(2));
         await userEvent.click(sortButton('Reconnects'));
 
@@ -249,7 +270,7 @@ describe('ProblemForwardersTable', () => {
             .mockResolvedValueOnce(searchResults([stuck, crashing]))
             .mockResolvedValueOnce(searchResults([crashing, stuck]));
 
-        renderWithQueryClient(<SortableTable />);
+        renderOnPage(SortableTable);
         await waitFor(() => expect(bodyRows()).toHaveLength(2));
         await userEvent.click(sortButton('Reconnects'));
 
@@ -265,7 +286,7 @@ describe('ProblemForwardersTable', () => {
             .mockResolvedValueOnce(searchResults([stuck, crashing]))
             .mockResolvedValueOnce(searchResults([crashing, stuck]));
 
-        renderWithQueryClient(<SortableTable />);
+        renderOnPage(SortableTable);
         await waitFor(() => expect(bodyRows()).toHaveLength(2));
         const list = screen.getByRole('table').parentElement as HTMLElement;
         list.scrollTop = 300;
@@ -289,7 +310,7 @@ describe('ProblemForwardersTable', () => {
                 search: expect.stringContaining(
                     '| sort 100 - failingHours - failingApps - reconnects + name',
                 ),
-                earliest_time: '-24h@h',
+                earliest_time: '-4h@m',
                 latest_time: 'now',
                 output_mode: 'json',
             }),

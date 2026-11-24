@@ -7,6 +7,7 @@ import {
 import { app } from '@splunk/splunk-utils/config';
 import { createURL } from '@splunk/splunk-utils/url';
 import Agents from './pages/agents/Agents';
+import { agentsSearchSchema } from './pages/agents/Agents.schema';
 import Home from './pages/home/Home';
 import { homeSearchSchema } from './pages/home/Home.schema';
 
@@ -42,6 +43,8 @@ const agentsRoute = createRoute({
     getParentRoute: () => rootRoute,
     path: '/agents',
     component: Agents,
+    validateSearch: agentsSearchSchema,
+    search: { middlewares: [stripSearchParams(agentsSearchSchema.parse({}))] },
 });
 
 const routeTree = rootRoute.addChildren([homeRoute, agentsRoute]);

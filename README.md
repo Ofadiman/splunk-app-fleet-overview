@@ -298,13 +298,21 @@ their phone home, about one a minute.
 The crash-looping and stuck clients keep their phone homes, and go quiet in a network outage like the
 other clients of their site.
 
+### Version switches
+
+10 other clients, picked with another seed, switch between two forwarder versions once a week, each at
+its own hour: one week they run their own version, the next week the next newer one (the next older
+one for 10.4.0). Each switch restarts the client, so it connects again at its phone home in that hour
+with the new version and build in its `_dsclient` event. The
+[activity list](#agent-details) of these agents shows the version change.
+
 The script keeps three things simpler than a real deployment server: a randomly restarted client
 logs its handshake at its next phone home rather than right after the restart, a client keeps its
 place in the hour after it connects again, and a client that was offline doesn't catch up on the
 deployments it missed.
 
-The fleet size, the shares, the problem forwarders, the schedule and the Splunk connection are
-constants at the top of `scripts/simulate.ts`.
+The fleet size, the shares, the problem forwarders, the version switches, the schedule and the Splunk
+connection are constants at the top of `scripts/simulate.ts`.
 
 ## Development
 
@@ -396,13 +404,20 @@ AppInspect reports any failure or error.
     ├── renderPage.tsx           Renders a page with the 1CD theme and the Splunk header via @splunk/react-page
     ├── GlobalStyles.ts          Makes the area below the Splunk bar fill the window
     ├── globals.d.ts             Type of __VIEW_LABELS__, the view labels that the build passes in
+    ├── formatTime.ts            Formats times, times ago and durations in the user's locale
     ├── components/
+    │   ├── AgentActivity/       List of what happened to one agent, with repeated events as one entry
+    │   ├── AgentAppsTable/      Table of the latest state of each app on one agent
+    │   ├── AgentCounts/         Failing apps, failing hours and reconnects of one agent
+    │   ├── AgentDetails/        Agent details screen: who the agent is, its phone home status, and its sections
+    │   ├── AgentPhoneHomesChart/ Chart of one agent's phone homes in each bucket
+    │   ├── AgentReconnectsChart/ Chart of how many times one agent connected again in each bucket
     │   ├── ConnectedForwardersChart/ Chart of the forwarders that phoned home in each bucket
     │   ├── DeploymentActivityChart/ Chart of the forwarders that installed, uninstalled or failed an app in each bucket
     │   ├── ForwarderReconnectsChart/ Chart of how many times forwarders connected again in each bucket
     │   ├── ProblemForwardersTable/ Table of the top 100 forwarders by failing apps, failing hours or reconnects
     │   ├── RouterLink/          Splunk UI Link that opens pages through the router
-    │   └── TimeRangeControls/   Time range picker and resolution of the overview charts
+    │   └── TimeRangeControls/   Time range picker and resolution of the charts, and their URL schema
     ├── testing/
     │   ├── mockTimeParser.ts    Answers the time parser requests of the charts in tests
     │   ├── renderWithQueryClient.tsx Renders components in tests with a fresh query client
@@ -410,7 +425,7 @@ AppInspect reports any failure or error.
     │   └── SplunkwebConnectorMock.tsx Gives the time range picker its default presets in tests
     └── pages/
         ├── home/                Home page at /home, titled Overview: Home.tsx, its URL schema, styles, and test
-        └── agents/              Agents page: Agents.tsx, its styles, and test
+        └── agents/              Agents page at /agents?guid=<GUID>: Agents.tsx, its URL schema, styles, and test
 ```
 
 Each component follows the file conventions in `AGENTS.md`: `Component.tsx`,
@@ -431,7 +446,7 @@ page at a view's URL, with or without a query string:
 - A path with more segments doesn't load the page on reload or from a link. For one more segment,
   such as `/agents/123`, Splunk answers with `{}` as JSON. For two or more, such as
   `/agents/123/apps`, it shows its 404 page. Put details such as the selected agent in query
-  parameters instead: `/agents?agent=123`.
+  parameters instead, such as the agent in `/agents?guid=<GUID>`.
 - Hash routes, such as `/home#/agents`, don't survive logging in. Splunk keeps the path and the
   query string when it sends you back from the login page, but drops the `#` part.
 
@@ -471,10 +486,10 @@ the Splunk home page and out of the **Apps** menu in the Splunk bar. The app sta
 With `is_visible = false`, Splunk would not open the app's pages at all.
 
 For links between pages, use `RouterLink` from `src/components/RouterLink/RouterLink.tsx`, such as
-`<RouterLink to="/agents">Agents</RouterLink>`. It renders a Splunk UI `Link`, but the router opens
-the page without loading it from Splunk again, and `to` only accepts the paths of existing routes.
-The link's `href` includes the base path, so opening it in a new tab works too. A Splunk UI `Link`
-with `to` would make Splunk send the whole page again.
+`<RouterLink to="/home">Overview</RouterLink>` on the agents page. It renders a Splunk UI `Link`,
+but the router opens the page without loading it from Splunk again, and `to` only accepts the paths
+of existing routes. The link's `href` includes the base path, so opening it in a new tab works too.
+A Splunk UI `Link` with `to` would make Splunk send the whole page again.
 
 Tests of a page or a component with router links need a router. `renderWithRouter` from
 `src/testing/renderWithRouter.tsx` renders the given pages under their paths, starting at the
@@ -502,7 +517,7 @@ reconnects, or the tab becomes visible. Mutations don't retry. Put the `queryOpt
 that calls `useQuery` in the component's `Component.hooks.ts`.
 
 Route loaders aren't used yet. Add one when a page needs data from its URL, such as an agent from
-`/agents?agent=123`: the loader calls `queryClient.prefetchQuery` or `ensureQueryData` with the same
+`/agents?guid=<GUID>`: the loader calls `queryClient.prefetchQuery` or `ensureQueryData` with the same
 `queryOptions`, and the component still reads the data with `useQuery`. Also set
 `defaultPreloadStaleTime: 0` on the router then, so the router's preload cache doesn't serve data
 that TanStack Query considers stale.
@@ -516,7 +531,8 @@ error right away.
 
 The overview page has two controls above the charts, and all three charts follow them. The
 [problem forwarders table](#problem-forwarders-table) follows the time range and ignores the
-resolution:
+resolution. The [agent details](#agent-details) screen has the same two controls, with the same
+defaults and URL parameters:
 
 - The time range picker is `TimeRangeDropdown` from `@splunk/react-time-range`, the same picker as
   on the Search page. `SplunkwebConnector` from the same package loads the presets from Splunk and
@@ -532,16 +548,18 @@ fleet. Buckets shorter than the phone home interval only count the forwarders wh
 them.
 
 - The choice lives in the URL of the overview page, as `earliest`, `latest` and `resolution`, so a
-  reload or a shared link keeps it. `homeSearchSchema` in `Home.schema.ts` is a
-  [zod](https://zod.dev) schema that `src/router.tsx` passes to `validateSearch`. It turns epoch
-  times, which the router reads as numbers, back into strings, and replaces a missing or unknown
-  value with its default. The same schema keeps the table's sorted column and order, as `sort` and
-  `order`. `stripSearchParams` leaves the defaults out of the URL: it takes them from
-  `homeSearchSchema.parse({})`, which fills in every default.
+  reload or a shared link keeps it. `chartTimeRangeSearchSchema` in `TimeRangeControls.schema.ts`
+  is a [zod](https://zod.dev) schema for these three. It turns epoch times, which the router reads
+  as numbers, back into strings, and replaces a missing or unknown value with its default.
+  `homeSearchSchema` in `Home.schema.ts` extends it with the table's sorted column and order, as
+  `sort` and `order`, and `agentsSearchSchema` in `Agents.schema.ts` with the agent's `guid`.
+  `src/router.tsx` passes each page's schema to `validateSearch`. `stripSearchParams` leaves the
+  defaults out of the URL: it takes them from `homeSearchSchema.parse({})` and
+  `agentsSearchSchema.parse({})`, which fill in every default.
 - Changing the time range, the resolution or the table's sort keeps your place on the page. After
   every navigation, TanStack Router scrolls the window back to the top unless it gets
-  `resetScroll: false`, so `Home.tsx` passes it to both of its `navigate` calls. Links to
-  other pages keep the default and open at the top.
+  `resetScroll: false`, so `Home.tsx` passes it to both of its `navigate` calls, and `Agents.tsx`
+  to its own. Links to other pages keep the default and open at the top.
 - To know how long the range is, `TimeRangeControls.hooks.ts` asks Splunk's `search/timeparser` REST
   endpoint for both ends of the range in epoch seconds (`output_time_format=%s`). TanStack Query
   caches the answer per range, so the controls and the three charts share one request.
@@ -691,12 +709,12 @@ the forwarders that failed to deploy an app or connected to the deployment serve
 [time range](#time-range-and-resolution). Each problem has its own column, and the table lists the
 top 100 forwarders by the column you sort by:
 
-| Column                   | What it shows                                                                                                                                                            |
-| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Forwarder, Host, Version | The forwarder's latest name, host name and version in `_dsclient`, from the whole 60 days that the index keeps. A dash means `_dsclient` has no event for the forwarder. |
-| Failing apps             | Apps whose last deployment in the time range failed: their latest failure in `_dsappevent` is newer than their latest `Install` or `Uninstall` with `Ok`.                |
-| Failing hours            | Clock hours in which at least one app failed to deploy on the forwarder.                                                                                                 |
-| Reconnects               | The forwarder's `_dsclient` events in the time range, the same events that the reconnects chart counts.                                                                  |
+| Column                   | What it shows                                                                                                                                                                                                                                                                                              |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Forwarder, Host, Version | The forwarder's latest name, host name and version in `_dsclient`, from the whole 60 days that the index keeps. The name links to the forwarder's [agent details](#agent-details), and shows the GUID when `_dsclient` has no event for the forwarder. A dash means the same for the host and the version. |
+| Failing apps             | Apps whose last deployment in the time range failed: their latest failure in `_dsappevent` is newer than their latest `Install` or `Uninstall` with `Ok`.                                                                                                                                                  |
+| Failing hours            | Clock hours in which at least one app failed to deploy on the forwarder.                                                                                                                                                                                                                                   |
+| Reconnects               | The forwarder's `_dsclient` events in the time range, the same events that the reconnects chart counts.                                                                                                                                                                                                    |
 
 With the default sort, the search is:
 
@@ -772,6 +790,78 @@ numbers.
   the rows scroll inside the card after 480 pixels, about 12 rows.
 - The table makes every page script about 0.06 MB bigger, gzipped.
 - Tests mock `oneShot`, like the chart tests do.
+
+## Agent details
+
+The agents page shows one agent at `/app/fleet_overview/agents?guid=<GUID>`. Each name in the
+[problem forwarders table](#problem-forwarders-table) links to it and passes the table's time range
+and resolution along, so the details cover the same time. The GUID is a query parameter because
+Splunk can't serve a sub-path such as `/agents/<GUID>` (see [How pages work](#how-pages-work)).
+
+`Agents.tsx` reads the GUID with `agentsSearchSchema`. Without one, the page asks you to pick an
+agent from the overview page. With something that isn't a GUID (`z.guid()`: 32 hexadecimal digits
+in five groups), it says so and runs no search. Otherwise it renders `AgentDetails`, from top to
+bottom:
+
+1. **Who the agent is.** The name is the page heading, followed by the phone home status, then the
+   host, IP address, version and build, OS, package and GUID. They come from the agent's latest
+   `_dsclient` event, and the phone homes from `_dsphonehome`. This search ignores the time range:
+
+    ```spl
+    | tstats latest(data.name) AS name latest(data.hostname) AS host latest(data.ip) AS ip
+        latest(data.splunkVersion) AS version latest(data.build) AS build latest(data.utsname) AS os
+        latest(data.package) AS package latest(data.packageType) AS packageType
+        where index=_dsclient data.clientId="<GUID>"
+    | appendcols [| tstats values(data.lastPhoneHomeTime) AS phoneHomes
+        where index=_dsphonehome data.clientId="<GUID>"]
+    | eval lastPhoneHome=tonumber(mvindex(phoneHomes, -1)), recent=mvindex(phoneHomes, -4, -1)
+    | eval interval=if(mvcount(recent) > 1, round((tonumber(mvindex(recent, -1))
+        - tonumber(mvindex(recent, 0))) / (mvcount(recent) - 1)), null())
+    | fields - phoneHomes recent
+    ```
+
+    The interval is the average gap between the last 4 phone homes, the same way as Splunk's
+    `DeploymentServerClients` search. The status compares the time since the last phone home with
+    it: "Phoning home" up to 2 intervals, "Late" up to 10, "Silent since" after that. With a single
+    phone home there's no interval, so the status only says when it was. When the search finds
+    neither a `_dsclient` event nor a phone home, the page says the indexes have no agent with this
+    GUID and shows nothing else.
+
+2. **The time range and resolution**, with the same controls as the overview page.
+3. **The same three counts as the problem forwarders table**, from `AgentCounts`, with the same
+   rules, so a click from the table lands on the same numbers.
+4. **Phone homes and reconnects charts**, from `AgentPhoneHomesChart` and `AgentReconnectsChart`.
+   They run the fleet charts' searches with `data.clientId="<GUID>"` added, count events per
+   bucket, and fill empty buckets with 0, so a gap in phone homes shows as missing columns.
+   `_dsphonehome` keeps 7 days, so for older ranges the phone homes chart says it has nothing.
+5. **Apps**, from `AgentAppsTable`: one row per app and server class, failing apps first, from all
+   the app events the index keeps, whatever the time range. An app is failing when it failed after
+   its last `Install` or `Uninstall` with `Ok`, the same rule as the problem forwarders table.
+   "Failing since" is the first failure after that, and the failure reason is the latest one, with
+   the quotes that the deployment server puts around it removed. "Last success" moves after a
+   deployment server restart, because forwarders confirm the apps they have with an `Install` and
+   `Ok`.
+6. **Activity**, from `AgentActivity`: the 100 most recent entries in the time range, newest first.
+   Reconnects and app events go into separate runs, and consecutive events of the same run become
+   one entry, such as "fleet_stuck_inputs failed to install 24 times". A run of app events ends
+   when the app's action, result or checksum changes, so each new version of an app is an entry of
+   its own. A run of reconnects ends when the agent's name, version or IP address changes, and the
+   entry says what changed, such as "Version 10.0.7 → 10.2.4". To find that change at the start of
+   the time range, the reconnects part reads all of `_dsclient` with `earliest=1 latest=now` and
+   leaves out the older reconnects only after comparing them. `Download` with `Ok` doesn't count,
+   because one comes right before every install.
+
+- Each section has its own loading message, error with Try again, and empty message, like the
+  overview cards. The empty messages name the indexes, because roles that can't search internal
+  indexes get no rows.
+- Times show in the browser's time zone, formatted for the user's Splunk locale by
+  `src/formatTime.ts`. `@splunk/moment` would use the Splunk time zone, but it needs timezone data
+  that only Splunk pages have, and it fails in tests.
+- For one simulated agent, each search takes a second or less: about 1 s for who the agent is,
+  0.8 s for the apps, and under 0.4 s for the counts and the activity of the last 7 days.
+- `streamstats` needs `global=false` with `window=1` and `by`. Without it, the window is the
+  previous event of any run, so the runs of different apps cut each other into pieces.
+- The page title stays Agents. The heading has the agent's name.
 
 ## Theme
 

@@ -12,6 +12,7 @@ import type { HeadCellSortHandler } from '@splunk/react-ui/Table';
 import WaitSpinner from '@splunk/react-ui/WaitSpinner';
 import { locale } from '@splunk/splunk-utils/config';
 import { sprintf } from '@splunk/ui-utils/format';
+import RouterLink from '../RouterLink/RouterLink';
 import {
     FORWARDER_COLUMNS,
     MISSING_VALUE,
@@ -41,7 +42,13 @@ const shownText = ({ forwarders, total }: ProblemForwarders) => {
     return total === 1 ? messages.oneShown : sprintf(messages.allShown, numberFormat.format(total));
 };
 
-const ForwardersTable = ({ forwarders, sort, onSortChange, onScroll }: ForwardersTableProps) => {
+const ForwardersTable = ({
+    forwarders,
+    timeRange,
+    sort,
+    onSortChange,
+    onScroll,
+}: ForwardersTableProps) => {
     const handleSort: HeadCellSortHandler = (_event, { sortKey }) => {
         const selected = forwarderColumnSchema.safeParse(sortKey);
         if (selected.success) {
@@ -77,7 +84,19 @@ const ForwardersTable = ({ forwarders, sort, onSortChange, onScroll }: Forwarder
             <Table.Body>
                 {forwarders.map((forwarder) => (
                     <Table.Row key={forwarder.clientId}>
-                        <Table.Cell>{forwarder.name ?? MISSING_VALUE}</Table.Cell>
+                        <Table.Cell>
+                            <RouterLink
+                                to="/agents"
+                                search={{
+                                    guid: forwarder.clientId,
+                                    earliest: timeRange.earliest,
+                                    latest: timeRange.latest,
+                                    resolution: timeRange.resolution,
+                                }}
+                            >
+                                {forwarder.name ?? forwarder.clientId}
+                            </RouterLink>
+                        </Table.Cell>
                         <Table.Cell>{forwarder.host ?? MISSING_VALUE}</Table.Cell>
                         <Table.Cell>{forwarder.version ?? MISSING_VALUE}</Table.Cell>
                         {FORWARDER_COLUMNS.map((column) => (
@@ -92,9 +111,14 @@ const ForwardersTable = ({ forwarders, sort, onSortChange, onScroll }: Forwarder
     );
 };
 
-const TableLoading = ({ sort, onSortChange }: ForwarderSortProps) => (
+const TableLoading = ({ timeRange, sort, onSortChange }: ForwarderSortProps) => (
     <StyledContent>
-        <ForwardersTable forwarders={[]} sort={sort} onSortChange={onSortChange} />
+        <ForwardersTable
+            forwarders={[]}
+            timeRange={timeRange}
+            sort={sort}
+            onSortChange={onSortChange}
+        />
         <StyledLoading>
             <WaitSpinner size="medium" screenReaderText={null} />
             {messages.loading}
@@ -133,18 +157,17 @@ const TableContent = ({ timeRange, sort, onSortChange }: ProblemForwardersTableP
 
     return (
         <StyledContent>
-            <P>
-                {updating ? (
-                    <StyledUpdating>
-                        <WaitSpinner screenReaderText={null} />
-                        {messages.loading}
-                    </StyledUpdating>
-                ) : (
-                    shownText(data)
-                )}
-            </P>
+            {updating ? (
+                <StyledUpdating>
+                    <WaitSpinner screenReaderText={null} />
+                    {messages.loading}
+                </StyledUpdating>
+            ) : (
+                <P>{shownText(data)}</P>
+            )}
             <ForwardersTable
                 forwarders={data.forwarders}
+                timeRange={timeRange}
                 sort={sort}
                 onSortChange={onSortChange}
                 onScroll={handleListScroll}
@@ -165,7 +188,13 @@ const ProblemForwardersTable = ({ timeRange, sort, onSortChange }: ProblemForwar
                     {({ reset }) => (
                         <ErrorBoundary onReset={reset} FallbackComponent={TableError}>
                             <Suspense
-                                fallback={<TableLoading sort={sort} onSortChange={onSortChange} />}
+                                fallback={
+                                    <TableLoading
+                                        timeRange={timeRange}
+                                        sort={sort}
+                                        onSortChange={onSortChange}
+                                    />
+                                }
                             >
                                 <TableContent
                                     timeRange={timeRange}

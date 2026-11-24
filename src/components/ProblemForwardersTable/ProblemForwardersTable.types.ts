@@ -1,5 +1,5 @@
 import type { UIEventHandler } from 'react';
-import type { TimeRange } from '../TimeRangeControls/TimeRangeControls.types';
+import type { ChartTimeRange, TimeRange } from '../TimeRangeControls/TimeRangeControls.types';
 
 export type ForwarderColumn = 'failingApps' | 'failingHours' | 'reconnects';
 
@@ -13,7 +13,7 @@ export type ForwarderSort = {
 export type ForwarderSearch = TimeRange & ForwarderSort;
 
 export type ProblemForwardersTableProps = {
-    timeRange: TimeRange;
+    timeRange: ChartTimeRange;
     sort: ForwarderSort;
     onSortChange: (sort: ForwarderSort) => void;
 };
@@ -30,7 +30,10 @@ export type ProblemForwarders = {
     total: number;
 };
 
-export type ForwarderSortProps = Pick<ProblemForwardersTableProps, 'sort' | 'onSortChange'>;
+export type ForwarderSortProps = Pick<
+    ProblemForwardersTableProps,
+    'timeRange' | 'sort' | 'onSortChange'
+>;
 
 export type ForwardersTableProps = ForwarderSortProps & {
     forwarders: ProblemForwarder[];

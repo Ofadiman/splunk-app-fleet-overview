@@ -31,6 +31,8 @@ const CRASHES_PER_HOUR = { min: 1, max: 5 };
 const STUCK_CLIENTS = 10;
 const SILENT_CLIENTS = 10;
 const SILENCE_DAYS = { every: 7, lasting: 2 };
+const SWITCHING_CLIENTS = 10;
+const VERSION_SWITCH_DAYS = 7;
 const OUTAGE_MINUTES = 30;
 const SERVER_RESTART_HOURS = { min: 3, max: 6 };
 const TIME_ZONE = Temporal.Now.timeZoneId();
@@ -83,6 +85,8 @@ type SimulatedEvent = {
     line: string;
 };
 
+type Version = (typeof versions)[number]['value'];
+
 type Client = {
     guid: string;
     ip: string;
@@ -98,6 +102,7 @@ type Client = {
     crashesPerHour: number;
     stuck: boolean;
     silenceOffset: number | undefined;
+    switching: { version: Version; offset: number } | undefined;
 };
 
 type Deployment = {
@@ -145,12 +150,14 @@ const createClients = (): Client[] => {
             crashesPerHour: 0,
             stuck: false,
             silenceOffset: undefined,
+            switching: undefined,
         };
     });
 };
 
 const SILENCE_CYCLE_HOURS = SILENCE_DAYS.every * 24;
 const SILENT_HOURS = SILENCE_DAYS.lasting * 24;
+const VERSION_SWITCH_HOURS = VERSION_SWITCH_DAYS * 24;
 
 const assignProblems = (fleet: Client[]) => {
     seed(6);
@@ -174,7 +181,39 @@ const assignProblems = (fleet: Client[]) => {
     return fleet;
 };
 
-const clients = assignProblems(createClients());
+const otherVersion = ({ splunkVersion }: Client) => {
+    const index = versions.findIndex(({ value }) => value.splunkVersion === splunkVersion);
+    return versions[index === versions.length - 1 ? index - 1 : index + 1].value;
+};
+
+const assignVersionSwitches = (fleet: Client[]) => {
+    seed(9);
+    const ordinary = fleet.filter(
+        (client) => !client.crashesPerHour && !client.stuck && client.silenceOffset === undefined,
+    );
+
+    for (const client of faker.helpers.arrayElements(ordinary, SWITCHING_CLIENTS)) {
+        client.switching = {
+            version: otherVersion(client),
+            offset: faker.number.int(VERSION_SWITCH_HOURS - 1),
+        };
+    }
+
+    return fleet;
+};
+
+const clients = assignVersionSwitches(assignProblems(createClients()));
+
+const versionPeriod = (client: Client, hour: number) =>
+    client.switching ? Math.floor((hour + client.switching.offset) / VERSION_SWITCH_HOURS) : 0;
+
+const versionAt = (client: Client, hour: number): Version =>
+    client.switching && versionPeriod(client, hour) % 2 === 1
+        ? client.switching.version
+        : { splunkVersion: client.splunkVersion, build: client.build };
+
+const switchedVersionIn = (client: Client, hour: number) =>
+    versionPeriod(client, hour) !== versionPeriod(client, hour - 1);
 
 const pad = (value: number, length = 2) => String(value).padStart(length, '0');
 
@@ -265,29 +304,32 @@ const phoneHome = (client: Client, time: number): SimulatedEvent => ({
     }),
 });
 
-const handshake = (client: Client, time: number): SimulatedEvent => ({
-    time,
-    stream: 'clients',
-    line: serialize(time, 'DSclient', {
-        guid: client.guid,
-        instanceId: client.guid,
-        ip: client.ip,
-        dns: client.hostname,
-        hostname: client.hostname,
-        mgmt: MGMT_PORT,
-        build: client.build,
-        instanceName: client.name,
-        connectionId: client.connectionId,
-        utsname: UTSNAME,
-        splunkVersion: client.splunkVersion,
-        package: 'universal_forwarder',
-        clientId: client.guid,
-        name: client.name,
-        packageType: 'tgz',
-        upgradeStatus: 'none',
-        upgradeTime: 'none',
-    }),
-});
+const handshake = (client: Client, time: number): SimulatedEvent => {
+    const { splunkVersion, build } = versionAt(client, Math.floor(time / HOUR));
+    return {
+        time,
+        stream: 'clients',
+        line: serialize(time, 'DSclient', {
+            guid: client.guid,
+            instanceId: client.guid,
+            ip: client.ip,
+            dns: client.hostname,
+            hostname: client.hostname,
+            mgmt: MGMT_PORT,
+            build,
+            instanceName: client.name,
+            connectionId: client.connectionId,
+            utsname: UTSNAME,
+            splunkVersion,
+            package: 'universal_forwarder',
+            clientId: client.guid,
+            name: client.name,
+            packageType: 'tgz',
+            upgradeStatus: 'none',
+            upgradeTime: 'none',
+        }),
+    };
+};
 
 const appEvent = (
     client: Client,
@@ -471,7 +513,7 @@ const eventsForHour = (hour: number, wanted: ReadonlySet<Stream>) => {
         }
 
         clients.forEach((client, index) => {
-            if (silentIn(client, hour - 1)) {
+            if (silentIn(client, hour - 1) || switchedVersionIn(client, hour)) {
                 reconnects.add(index);
             }
         });

@@ -6,7 +6,6 @@ import DeploymentActivityChart from '../../components/DeploymentActivityChart/De
 import ForwarderReconnectsChart from '../../components/ForwarderReconnectsChart/ForwarderReconnectsChart';
 import ProblemForwardersTable from '../../components/ProblemForwardersTable/ProblemForwardersTable';
 import type { ForwarderSort } from '../../components/ProblemForwardersTable/ProblemForwardersTable.types';
-import RouterLink from '../../components/RouterLink/RouterLink';
 import TimeRangeControls from '../../components/TimeRangeControls/TimeRangeControls';
 import type { ChartTimeRange } from '../../components/TimeRangeControls/TimeRangeControls.types';
 import { homeSearchSchema } from './Home.schema';
@@ -33,9 +32,6 @@ const Home = () => {
             <SpotLight variant="page-top" intensity="medium" />
             <StyledContent>
                 <Heading level={1}>Overview</Heading>
-                <RouterLink to="/agents" appearance="standalone">
-                    Agents
-                </RouterLink>
                 <TimeRangeControls value={timeRange} onChange={handleTimeRangeChange} />
                 <StyledCharts>
                     <ConnectedForwardersChart timeRange={timeRange} />

@@ -16,8 +16,8 @@ export const StyledLoading = styled.div`
     height: ${LOADING_HEIGHT}px;
 `;
 
-export const StyledUpdating = styled.span`
-    display: inline-flex;
+export const StyledUpdating = styled.div`
+    display: flex;
     align-items: center;
     gap: ${variables.spacingSmall};
 `;

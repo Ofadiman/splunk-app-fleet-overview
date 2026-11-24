@@ -74,14 +74,6 @@ describe('Home', () => {
         ).toBeInTheDocument();
     });
 
-    it('opens the agents page from its link', async () => {
-        renderWithRouter('/home', { '/home': Home, '/agents': AgentsPage });
-
-        await userEvent.click(await screen.findByRole('link', { name: 'Agents' }));
-
-        expect(await screen.findByRole('heading', { name: 'Agents page' })).toBeInTheDocument();
-    });
-
     it('shows the last 24 hours in 1-hour buckets by default', async () => {
         renderWithRouter('/home', { '/home': Home, '/agents': AgentsPage });
 
