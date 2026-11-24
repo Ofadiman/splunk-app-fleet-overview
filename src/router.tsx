@@ -6,7 +6,6 @@ import {
 } from '@tanstack/react-router';
 import { app } from '@splunk/splunk-utils/config';
 import { createURL } from '@splunk/splunk-utils/url';
-import { DEFAULT_TIME_RANGE } from './components/TimeRangeControls/TimeRangeControls.constants';
 import Agents from './pages/agents/Agents';
 import Overview from './pages/overview/Overview';
 import { overviewSearchSchema } from './pages/overview/Overview.schema';
@@ -36,7 +35,7 @@ const overviewRoute = createRoute({
     path: '/overview',
     component: Overview,
     validateSearch: overviewSearchSchema,
-    search: { middlewares: [stripSearchParams(DEFAULT_TIME_RANGE)] },
+    search: { middlewares: [stripSearchParams(overviewSearchSchema.parse({}))] },
 });
 
 const agentsRoute = createRoute({

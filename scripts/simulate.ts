@@ -26,6 +26,11 @@ const RING_COUNT = 4;
 const CANARY_SHARE = 0.05;
 const BLOCKED_SHARE = 0.02;
 const RESTARTS_PER_HOUR = { min: 40, max: 60 };
+const CRASH_LOOPING_CLIENTS = 15;
+const CRASHES_PER_HOUR = { min: 1, max: 5 };
+const STUCK_CLIENTS = 10;
+const SILENT_CLIENTS = 10;
+const SILENCE_DAYS = { every: 7, lasting: 2 };
 const OUTAGE_MINUTES = 30;
 const SERVER_RESTART_HOURS = { min: 3, max: 6 };
 const TIME_ZONE = Temporal.Now.timeZoneId();
@@ -90,6 +95,9 @@ type Client = {
     ring: number;
     canary: boolean;
     blocked: boolean;
+    crashesPerHour: number;
+    stuck: boolean;
+    silenceOffset: number | undefined;
 };
 
 type Deployment = {
@@ -134,11 +142,39 @@ const createClients = (): Client[] => {
             ring: faker.number.int(RING_COUNT - 1),
             canary: faker.datatype.boolean(CANARY_SHARE),
             blocked: faker.datatype.boolean(BLOCKED_SHARE),
+            crashesPerHour: 0,
+            stuck: false,
+            silenceOffset: undefined,
         };
     });
 };
 
-const clients = createClients();
+const SILENCE_CYCLE_HOURS = SILENCE_DAYS.every * 24;
+const SILENT_HOURS = SILENCE_DAYS.lasting * 24;
+
+const assignProblems = (fleet: Client[]) => {
+    seed(6);
+    const picked = faker.helpers.arrayElements(
+        fleet,
+        CRASH_LOOPING_CLIENTS + STUCK_CLIENTS + SILENT_CLIENTS,
+    );
+    const stuckFrom = CRASH_LOOPING_CLIENTS;
+    const silentFrom = stuckFrom + STUCK_CLIENTS;
+
+    for (const client of picked.slice(0, stuckFrom)) {
+        client.crashesPerHour = faker.number.int(CRASHES_PER_HOUR);
+    }
+    for (const client of picked.slice(stuckFrom, silentFrom)) {
+        client.stuck = true;
+    }
+    for (const client of picked.slice(silentFrom)) {
+        client.silenceOffset = faker.number.int(SILENCE_CYCLE_HOURS - 1);
+    }
+
+    return fleet;
+};
+
+const clients = assignProblems(createClients());
 
 const pad = (value: number, length = 2) => String(value).padStart(length, '0');
 
@@ -300,6 +336,12 @@ const blockedDeployment = (cycle: number): Deployment => ({
     checksum: checksum(3, cycle),
 });
 
+const stuckDeployment: Deployment = {
+    serverClassName: 'fleet_stuck',
+    appName: 'fleet_stuck_inputs',
+    checksum: checksum(4, 0),
+};
+
 const untarFailure = ({ serverClassName, appName }: Deployment, bundleTime: number) => {
     const bundle = `/opt/splunkforwarder/var/run/${serverClassName}/${appName}-${Math.floor(bundleTime / SECOND)}.bundle`;
     return `'Failed to untar archive=${bundle} to='/opt/splunkforwarder/etc/apps/${appName}''`;
@@ -367,10 +409,15 @@ const serverRestartTime = (day: Temporal.PlainDate) => {
 
 const outageSite = (cycle: number) => cycle % SITE_COUNT;
 
+const silentIn = (client: Client, hour: number) =>
+    client.silenceOffset !== undefined &&
+    (hour + client.silenceOffset) % SILENCE_CYCLE_HOURS < SILENT_HOURS;
+
 const missedPhoneHome = (client: Client, slot: number, hour: number) =>
-    schedule[hour % schedule.length] === 'outage' &&
-    client.site === outageSite(Math.floor(hour / schedule.length)) &&
-    slot < hour * HOUR + OUTAGE_MINUTES * MINUTE;
+    silentIn(client, hour) ||
+    (schedule[hour % schedule.length] === 'outage' &&
+        client.site === outageSite(Math.floor(hour / schedule.length)) &&
+        slot < hour * HOUR + OUTAGE_MINUTES * MINUTE);
 
 const eventsForHour = (hour: number, wanted: ReadonlySet<Stream>) => {
     const cycle = Math.floor(hour / schedule.length);
@@ -423,9 +470,25 @@ const eventsForHour = (hour: number, wanted: ReadonlySet<Stream>) => {
             });
         }
 
+        clients.forEach((client, index) => {
+            if (silentIn(client, hour - 1)) {
+                reconnects.add(index);
+            }
+        });
+
         for (const index of reconnects) {
             if (online(index)) {
                 events.push(handshake(clients[index], slots[index]));
+            }
+        }
+
+        seed(7, hour);
+        for (const client of clients) {
+            for (let crash = 0; crash < client.crashesPerHour; crash += 1) {
+                const restartedAt = hour * HOUR + faker.number.int(HOUR - 1);
+                if (!missedPhoneHome(client, restartedAt, hour)) {
+                    events.push(handshake(client, restartedAt));
+                }
             }
         }
     }
@@ -436,6 +499,7 @@ const eventsForHour = (hour: number, wanted: ReadonlySet<Stream>) => {
         const blocked = blockedDeployment(cycle);
         const bundleTime = (cycle * schedule.length + schedule.indexOf('failingInstall')) * HOUR;
         const blockedFailure = untarFailure(blocked, bundleTime);
+        const stuckFailure = untarFailure(stuckDeployment, cycle * schedule.length * HOUR);
 
         seed(4, hour);
         const deploy = (index: number, deployment: Deployment, failedReason?: string) => {
@@ -449,6 +513,9 @@ const eventsForHour = (hour: number, wanted: ReadonlySet<Stream>) => {
         };
 
         clients.forEach((client, index) => {
+            if (!online(index)) {
+                return;
+            }
             if (scenario === 'rollout' && client.ring === cycle % RING_COUNT) {
                 deploy(index, rings[client.ring]);
             }
@@ -463,6 +530,13 @@ const eventsForHour = (hour: number, wanted: ReadonlySet<Stream>) => {
             }
             if (scenario === 'recovery' && client.canary) {
                 deploy(index, canary);
+            }
+        });
+
+        seed(8, hour);
+        clients.forEach((client, index) => {
+            if (client.stuck && online(index)) {
+                deploy(index, stuckDeployment, stuckFailure);
             }
         });
     }

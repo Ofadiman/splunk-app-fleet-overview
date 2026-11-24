@@ -214,7 +214,7 @@ live counts every 10 seconds instead, without colors.
 - When it starts again, the script continues after the newest event in the files, so after a day
   off it backfills only that day. The events depend only on their time, a fixed seed and the time
   zone, so a run that stopped and started again writes the same events as one that never stopped.
-- The first backfill writes about 4.9 GB in less than a minute: 1.6 GB of phone homes, 1.4 GB of
+- The first backfill writes about 5 GB in less than a minute: 1.6 GB of phone homes, 1.4 GB of
   client events and 2 GB of app events. Splunk indexes them in about two and a half minutes and
   stores them in about 2.5 GB.
 - Each start with `--renew-anon-volumes` gives Splunk empty indexes, and Splunk indexes everything
@@ -247,13 +247,18 @@ forwarders. Each client has:
 - one of four deployment rings. About 5% of the clients are also in the `fleet_canary` server
   class, and about 2% in `fleet_blocked`.
 
+Once the clients exist, the script picks 45 of them with a seed of their own to be the
+[problem forwarders](#problem-forwarders).
+
 ### Phone homes
 
 Every client phones home once an hour. Each hour, the script spreads the 25,000 phone homes over
 the 60 minutes so that every minute gets between 400 and 450, in a different pattern every hour. A
 client's phone home moves by a minute or two from one hour to the next. At 1-minute resolution,
-the connected forwarders line stays between 400 and 450 outside the network outage. At 1 hour or
-more, every client phones home in each bucket, so the line shows the whole fleet of 25,000.
+the connected forwarders line stays between 400 and 450 outside the network outage, and dips to 399
+now and then when a [silent forwarder](#problem-forwarders) skips its turn. At 1 hour or more,
+every client that isn't silent phones home in each bucket, so the line shows the whole fleet: 24,994
+to 25,000, depending on how many forwarders are silent.
 
 ### Scenarios
 
@@ -269,7 +274,7 @@ and each client takes part at its phone home in that hour:
 | 06, 14, 22          | Network outage       | One of the 10 sites, the next one each time, can't reach the deployment server for the first 30 minutes. Its about 2,500 clients skip the phone homes they'd make then, so the connected forwarders line drops to about 355 to 405 a minute. |
 | 07, 15, 23          | Recovery             | The clients that skipped a phone home connect again at their next one, about 1,250 `_dsclient` events in the first half hour. `fleet_canary` comes back, and its clients log `Download`/`Ok` and `Install`/`Ok` for `fleet_canary_inputs`.   |
 
-Nothing happens in hours 05, 13 and 21. Once a day, at a random time between 03:00 and 06:00 in the
+No scenario runs in hours 05, 13 and 21. Once a day, at a random time between 03:00 and 06:00 in the
 time zone of the machine that runs the script, the deployment server restarts. The script prints the
 time zone when it starts, such as `Europe/Warsaw`, and follows its daylight saving time. Every
 client connects again at its next phone home and logs a `_dsclient` event, so for the next hour the
@@ -279,12 +284,27 @@ that skip a phone home connect again in the recovery hour instead.
 On top of the scenarios, 40 to 60 random clients restart every hour and log a `_dsclient` event at
 their phone home, about one a minute.
 
-The script keeps two things simpler than a real deployment server: a client logs its handshake at
-its next phone home rather than right after a restart, and it keeps its place in the hour after it
-connects again.
+### Problem forwarders
 
-The fleet size, the shares, the schedule and the Splunk connection are constants at the top of
-`scripts/simulate.ts`.
+45 clients have the same problem all the time, so the
+[problem forwarders table](#problem-forwarders-table) has clear leaders in every column:
+
+| Clients | Problem       | What happens                                                                                                                                                                                                                                                                                                               |
+| ------- | ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 15      | Crash-looping | Each one restarts between 1 and 5 times an hour, the same number every hour, at random times. Each restart logs a `_dsclient` event right away, so these clients log 25 to 120 a day instead of 1 to 4. Together they add about 50 reconnects an hour, so outside the spikes the reconnects chart shows 85 to 112 an hour. |
+| 10      | Stuck install | Each one is in the `fleet_stuck` server class, whose `fleet_stuck_inputs` never installs. At every phone home, it logs `Download`/`Ok`, then `Install`/`Fail` with `Failed to untar archive=…`, so the deployment activity chart shows 10 more failed forwarders in every hour.                                            |
+| 10      | Silent        | Each one stops phoning home for 2 days in every 7, starting at its own hour. It logs nothing while it's silent, and connects again at its first phone home after, which logs a `_dsclient` event. Up to six of them are silent at a time.                                                                                  |
+
+The crash-looping and stuck clients keep their phone homes, and go quiet in a network outage like the
+other clients of their site.
+
+The script keeps three things simpler than a real deployment server: a randomly restarted client
+logs its handshake at its next phone home rather than right after the restart, a client keeps its
+place in the hour after it connects again, and a client that was offline doesn't catch up on the
+deployments it missed.
+
+The fleet size, the shares, the problem forwarders, the schedule and the Splunk connection are
+constants at the top of `scripts/simulate.ts`.
 
 ## Development
 
@@ -380,6 +400,7 @@ AppInspect reports any failure or error.
     │   ├── ConnectedForwardersChart/ Chart of the forwarders that phoned home in each bucket
     │   ├── DeploymentActivityChart/ Chart of the forwarders that installed, uninstalled or failed an app in each bucket
     │   ├── ForwarderReconnectsChart/ Chart of how many times forwarders connected again in each bucket
+    │   ├── ProblemForwardersTable/ Table of the top 100 forwarders by failing apps, failing hours or reconnects
     │   ├── RouterLink/          Splunk UI Link that opens pages through the router
     │   └── TimeRangeControls/   Time range picker and resolution of the overview charts
     ├── testing/
@@ -491,7 +512,9 @@ error right away.
 
 ## Time range and resolution
 
-The overview page has two controls above the charts, and all three charts follow them:
+The overview page has two controls above the charts, and all three charts follow them. The
+[problem forwarders table](#problem-forwarders-table) follows the time range and ignores the
+resolution:
 
 - The time range picker is `TimeRangeDropdown` from `@splunk/react-time-range`, the same picker as
   on the Search page. `SplunkwebConnector` from the same package loads the presets from Splunk and
@@ -510,7 +533,13 @@ them.
   reload or a shared link keeps it. `overviewSearchSchema` in `Overview.schema.ts` is a
   [zod](https://zod.dev) schema that `src/router.tsx` passes to `validateSearch`. It turns epoch
   times, which the router reads as numbers, back into strings, and replaces a missing or unknown
-  value with its default. `stripSearchParams` leaves the defaults out of the URL.
+  value with its default. The same schema keeps the table's sorted column and order, as `sort` and
+  `order`. `stripSearchParams` leaves the defaults out of the URL: it takes them from
+  `overviewSearchSchema.parse({})`, which fills in every default.
+- Changing the time range, the resolution or the table's sort keeps your place on the page. After
+  every navigation, TanStack Router scrolls the window back to the top unless it gets
+  `resetScroll: false`, so `Overview.tsx` passes it to both of its `navigate` calls. Links to
+  other pages keep the default and open at the top.
 - To know how long the range is, `TimeRangeControls.hooks.ts` asks Splunk's `search/timeparser` REST
   endpoint for both ends of the range in epoch seconds (`output_time_format=%s`). TanStack Query
   caches the answer per range, so the controls and the three charts share one request.
@@ -652,6 +681,95 @@ chart searches.
   tokens as `oklch()` colors, and `@splunk/visualizations` draws those as black.
 - The y-axis marks follow the same steps as in the reconnects chart.
 - `_dsappevent` keeps events for 60 days.
+
+## Problem forwarders table
+
+Below the deployment activity chart, the overview page shows `ProblemForwardersTable`, a table of
+the forwarders that failed to deploy an app or connected to the deployment server again in the
+[time range](#time-range-and-resolution). Each problem has its own column, and the table lists the
+top 100 forwarders by the column you sort by:
+
+| Column                   | What it shows                                                                                                                                                            |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Forwarder, Host, Version | The forwarder's latest name, host name and version in `_dsclient`, from the whole 60 days that the index keeps. A dash means `_dsclient` has no event for the forwarder. |
+| Failing apps             | Apps whose last deployment in the time range failed: their latest failure in `_dsappevent` is newer than their latest `Install` or `Uninstall` with `Ok`.                |
+| Failing hours            | Clock hours in which at least one app failed to deploy on the forwarder.                                                                                                 |
+| Reconnects               | The forwarder's `_dsclient` events in the time range, the same events that the reconnects chart counts.                                                                  |
+
+With the default sort, the search is:
+
+```spl
+| tstats max(_time) AS last where index=_dsappevent by data.clientId data.appName data.action data.result
+| eval failed_at=if('data.result'!="Ok", last, null())
+| eval fixed_at=if('data.result'="Ok" AND 'data.action'!="Download", last, null())
+| stats max(failed_at) AS failed_at max(fixed_at) AS fixed_at by data.clientId data.appName
+| where failed_at > coalesce(fixed_at, 0)
+| stats count AS failingApps by data.clientId
+| append [| tstats count where index=_dsappevent data.result!=Ok by _time span=1h data.clientId
+    | stats count AS failingHours by data.clientId]
+| append [| tstats count AS reconnects where index=_dsclient by data.clientId]
+| append [| tstats latest(data.name) AS name latest(data.hostname) AS host
+    latest(data.splunkVersion) AS version where index=_dsclient earliest=1 latest=now by data.clientId]
+| stats max(failingApps) AS failingApps max(failingHours) AS failingHours max(reconnects) AS reconnects
+    first(name) AS name first(host) AS host first(version) AS version by data.clientId
+| fillnull value=0 failingApps failingHours reconnects
+| where failingApps > 0 OR failingHours > 0 OR reconnects > 0
+| eventstats count AS total
+| sort 100 - failingApps - failingHours - reconnects + name
+| rename data.clientId AS clientId
+| table clientId name host version failingApps failingHours reconnects total
+```
+
+`useProblemForwarders` in `ProblemForwardersTable.hooks.ts` runs it like the chart searches, with
+the same caching and retries, but asks for `output_mode=json`, which returns one object per row.
+`searchResultsSchema` in `ProblemForwardersTable.schema.ts` checks the rows and turns the counts into
+numbers.
+
+- You can sort by the three counts. Clicking a heading sorts by its column from the highest count,
+  and clicking the same heading again reverses the order. The search sorts and keeps the first 100
+  rows, so each sort runs it again: sorting 100 rows in the browser would only reorder the top 100
+  of another column. Ties go to the other two counts, highest first, then to the name.
+- The sort lives in the URL next to the time range, as `sort` (`failingApps`, `failingHours` or
+  `reconnects`) and `order` (`desc` or `asc`). The defaults are `failingApps` and `desc`.
+- Above the table, a line says how many forwarders the search found, such as "Showing the top 100
+  of 25,000 forwarders". `eventstats` counts every forwarder that passes the `where`, before `sort`
+  keeps 100.
+- Every forwarder connects again after the deployment server restarts, so in a range with a
+  restart, almost the whole fleet counts. Reconnects matter when they stand out: the
+  [crash-looping forwarders](#problem-forwarders) log 25 to 120 a day, the others 1 to 4.
+- An app stays failing until the forwarder installs or uninstalls it with `Ok`. A `Download` with
+  `Ok` doesn't count, because one comes right before each failing install. When you remove a
+  failing app from its server class, the forwarder logs nothing more for it, so the app counts as
+  failing until its last failure leaves the time range. `tstats` gives whole seconds, and a failure
+  and a fix in the same second count as fixed.
+- Failing hours count clock hours, not events, for the same reason as the
+  [deployment activity chart](#deployment-activity-chart): a failing install repeats at every phone
+  home. The resolution doesn't change them. An hour that the range only partly covers counts too.
+- `_dsclient` only gets an event when a forwarder connects, which can be weeks before the time
+  range. `earliest=1 latest=now` in the `where` of the last `tstats` replaces the time range of the
+  search, so the names come from everything the index keeps, like in Splunk's own
+  `DeploymentServerClients` search. `earliest=0` doesn't work: `tstats` keeps the time range then.
+- Each `append` runs a subsearch, which returns at most 50,000 rows, so a fleet of more than 50,000
+  forwarders would lose some. `tstats prestats=t append=t` merges searches without subsearches,
+  but `count` then also counts the rows of the other `tstats`.
+- With the 25,000 simulated forwarders, the search takes about 2 seconds for Last 24 hours and
+  about 3 seconds for 60 days.
+- While the first search runs, the table shows its headings with the loading message below them,
+  so you can pick the sort right away. When no forwarder failed or reconnected, the card says so
+  instead and names the indexes, because roles that can't search internal indexes get no rows.
+- When you pick another sort, the table keeps the rows it has until the new ones arrive, and the
+  line above it says "Loading problem forwarders" meanwhile. `TableContent` searches with
+  `useDeferredValue` copies of the column and the order, so React keeps showing the old rows while
+  the new search suspends, instead of the loading state. The loading state is shorter than the
+  table, so showing it would make the page shorter and move it up when you're at the bottom.
+- Once the new rows arrive, the list scrolls back to its first row, so you see the top of the new
+  order. `useScrollToTopOnSort` in `ProblemForwardersTable.hooks.ts` keeps the scrolling element
+  that the table's `onScroll` reports, and sets its `scrollTop` to 0 when the sort changes. A list
+  that you never scrolled is at its first row already.
+- An icon next to each count heading shows what the count means. The heading stays in place and
+  the rows scroll inside the card after 480 pixels, about 12 rows.
+- The table makes every page script about 0.06 MB bigger, gzipped.
+- Tests mock `oneShot`, like the chart tests do.
 
 ## Theme
 

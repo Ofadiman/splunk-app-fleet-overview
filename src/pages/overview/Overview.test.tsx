@@ -66,6 +66,14 @@ describe('Overview', () => {
         ).toBeInTheDocument();
     });
 
+    it('shows the problem forwarders table', async () => {
+        renderWithRouter('/overview', { '/overview': Overview, '/agents': AgentsPage });
+
+        expect(
+            await screen.findByRole('heading', { level: 2, name: 'Problem forwarders' }),
+        ).toBeInTheDocument();
+    });
+
     it('opens the agents page from its link', async () => {
         renderWithRouter('/overview', { '/overview': Overview, '/agents': AgentsPage });
 
@@ -133,5 +141,137 @@ describe('Overview', () => {
 
         expect(await screen.findByRole('combobox', { name: 'Resolution: 1 hour' })).toBeVisible();
         await searchedWith({ search: expect.stringContaining('span=1h') });
+    });
+
+    it('lists the forwarders with the most failing apps first by default', async () => {
+        renderWithRouter('/overview', { '/overview': Overview, '/agents': AgentsPage });
+
+        expect(await screen.findByRole('columnheader', { name: /^Failing apps/ })).toHaveAttribute(
+            'aria-sort',
+            'descending',
+        );
+        await searchedWith({
+            search: expect.stringContaining('| sort 100 - failingApps - failingHours - reconnects'),
+        });
+    });
+
+    it('reads the sorted column and the order from the URL', async () => {
+        renderWithRouter('/overview?sort=reconnects&order=asc', {
+            '/overview': Overview,
+            '/agents': AgentsPage,
+        });
+
+        expect(await screen.findByRole('columnheader', { name: /^Reconnects/ })).toHaveAttribute(
+            'aria-sort',
+            'ascending',
+        );
+        await searchedWith({
+            search: expect.stringContaining('| sort 100 + reconnects - failingApps - failingHours'),
+        });
+    });
+
+    it('keeps the sorted column in the URL and searches with it', async () => {
+        const { router } = renderWithRouter('/overview', {
+            '/overview': Overview,
+            '/agents': AgentsPage,
+        });
+
+        await userEvent.click(await screen.findByRole('button', { name: /^Failing hours/ }));
+
+        await waitFor(() =>
+            expect(router.state.location.search).toMatchObject({
+                sort: 'failingHours',
+                order: 'desc',
+            }),
+        );
+        await searchedWith({
+            search: expect.stringContaining('| sort 100 - failingHours - failingApps - reconnects'),
+        });
+    });
+
+    it('keeps the sorted column when you change the resolution', async () => {
+        const { router } = renderWithRouter('/overview?sort=reconnects&order=asc', {
+            '/overview': Overview,
+            '/agents': AgentsPage,
+        });
+
+        await userEvent.click(await screen.findByRole('combobox', { name: 'Resolution: 1 hour' }));
+        await userEvent.click(await screen.findByRole('option', { name: /^15 minutes/ }));
+
+        await waitFor(() =>
+            expect(router.state.location.search).toMatchObject({
+                resolution: '15m',
+                sort: 'reconnects',
+                order: 'asc',
+            }),
+        );
+    });
+
+    it('keeps the time range when you sort by another column', async () => {
+        const { router } = renderWithRouter('/overview?earliest=-7d%40h&latest=now&resolution=6h', {
+            '/overview': Overview,
+            '/agents': AgentsPage,
+        });
+
+        await userEvent.click(await screen.findByRole('button', { name: /^Reconnects/ }));
+
+        await waitFor(() =>
+            expect(router.state.location.search).toMatchObject({
+                earliest: '-7d@h',
+                latest: 'now',
+                resolution: '6h',
+                sort: 'reconnects',
+            }),
+        );
+    });
+
+    it('stays where you scrolled to when you sort by another column', async () => {
+        renderWithRouter('/overview', { '/overview': Overview, '/agents': AgentsPage });
+        const reconnects = await screen.findByRole('button', { name: /^Reconnects/ });
+        vi.mocked(window.scrollTo).mockClear();
+
+        await userEvent.click(reconnects);
+
+        await waitFor(() =>
+            expect(screen.getByRole('columnheader', { name: /^Reconnects/ })).toHaveAttribute(
+                'aria-sort',
+                'descending',
+            ),
+        );
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        expect(window.scrollTo).not.toHaveBeenCalled();
+    });
+
+    it('stays where you scrolled to when you change the resolution', async () => {
+        const { router } = renderWithRouter('/overview', {
+            '/overview': Overview,
+            '/agents': AgentsPage,
+        });
+        const resolution = await screen.findByRole('combobox', { name: 'Resolution: 1 hour' });
+        vi.mocked(window.scrollTo).mockClear();
+
+        await userEvent.click(resolution);
+        await userEvent.click(await screen.findByRole('option', { name: /^15 minutes/ }));
+
+        await waitFor(() =>
+            expect(router.state.location.search).toMatchObject({ resolution: '15m' }),
+        );
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        expect(window.scrollTo).not.toHaveBeenCalled();
+    });
+
+    it('falls back to the default sort when the URL has an unknown one', async () => {
+        renderWithRouter('/overview?sort=hostname&order=sideways', {
+            '/overview': Overview,
+            '/agents': AgentsPage,
+        });
+
+        expect(await screen.findByRole('columnheader', { name: /^Failing apps/ })).toHaveAttribute(
+            'aria-sort',
+            'descending',
+        );
+        await searchedWith({
+            search: expect.stringContaining('| sort 100 - failingApps - failingHours - reconnects'),
+        });
     });
 });
