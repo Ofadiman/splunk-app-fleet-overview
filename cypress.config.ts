@@ -1,11 +1,11 @@
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'cypress';
+import { sharedComponentSpecs, testAliases, testDependencyOptimization } from './testAliases.ts';
 import {
     collectTestCoverage,
     createTestCoverageReport,
     instrumentTestCoverage,
-} from './scripts/testCoverage.ts';
-import { sharedComponentSpecs, testAliases, testDependencyOptimization } from './testAliases.ts';
+} from './testCoverage.ts';
 
 export default defineConfig({
     screenshotsFolder: 'dist/cypress/screenshots',

@@ -362,10 +362,9 @@ in shared specs. Cypress also runs three integration cases under `cypress/compon
 Splunk HTTP responses and check chart rendering, table sorting, and navigation from a forwarder row
 to its agent details.
 
-Run `pnpm test:coverage` to run both suites in Chrome and check that they cover the same statements,
-functions, and branches in the app source. Run `pnpm test:vitest:coverage` or
-`pnpm test:cypress:coverage` for an individual report. The reports are saved as
-`dist/coverage/vitest/coverage-final.json` and `dist/coverage/cypress/coverage-final.json`.
+Run `pnpm test:vitest:coverage` or `pnpm test:cypress:coverage` to collect coverage from that
+component suite in Chrome. Each command prints a summary and writes a report to
+`dist/coverage/vitest/coverage-final.json` or `dist/coverage/cypress/coverage-final.json`.
 
 Generated files go to `dist/`, which git ignores. This includes the app in `dist/fleet_overview/`,
 the package `dist/fleet_overview.tar.gz`, the AppInspect report `dist/appinspect.json`, and test

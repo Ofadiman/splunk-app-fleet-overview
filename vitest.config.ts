@@ -1,12 +1,12 @@
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react-swc';
 import { playwright } from '@vitest/browser-playwright';
+import { sharedComponentSpecs, testAliases, testDependencyOptimization } from './testAliases.ts';
 import {
     collectTestCoverage,
     createTestCoverageReport,
     instrumentTestCoverage,
-} from './scripts/testCoverage.ts';
-import { sharedComponentSpecs, testAliases, testDependencyOptimization } from './testAliases.ts';
+} from './testCoverage.ts';
 
 const coverage = collectTestCoverage ? createTestCoverageReport('vitest') : undefined;
 

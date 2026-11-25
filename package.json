@@ -28,7 +28,6 @@
     "test:cypress:coverage": "FLEET_TEST_COVERAGE=true cypress run --component --browser=chrome",
     "test:cypress:e2e": "cypress run --e2e --browser=chrome",
     "test:e2e": "playwright test",
-    "test:coverage": "pnpm test:vitest:coverage && pnpm test:cypress:coverage && node scripts/compareTestCoverage.ts",
     "simulate": "node scripts/simulate.ts"
   },
   "dependencies": {

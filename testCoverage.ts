@@ -8,7 +8,7 @@ import libReport from 'istanbul-lib-report';
 import reports from 'istanbul-reports';
 import type { Plugin } from 'vite';
 
-const root = fileURLToPath(new URL('..', import.meta.url));
+const root = fileURLToPath(new URL('.', import.meta.url));
 const sourceFiles = () =>
     globSync('src/**/*.{ts,tsx}', {
         cwd: root,
