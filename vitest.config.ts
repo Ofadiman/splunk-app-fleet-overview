@@ -23,6 +23,11 @@ export default defineConfig({
     },
     resolve: { alias: testAliases },
     test: {
+        ...(process.env.CI &&
+            process.env.BROWSER === 'webkit' && {
+                fileParallelism: false,
+                env: { FLEET_TEST_ASYNC_TIMEOUT: '10000' },
+            }),
         attachmentsDir: './dist/test-attachments',
         globals: true,
         include: [sharedComponentSpecs],
