@@ -15,6 +15,7 @@
     "package": "pnpm run build && node scripts/package.ts",
     "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,css,json}\"",
     "format:verify": "prettier --list-different \"src/**/*.{ts,tsx,js,jsx,css,json}\"",
+    "typescript:check": "tsc --build",
     "test:vitest:chrome": "vitest run --project=chrome",
     "test:vitest:edge": "vitest run --project=edge",
     "test:vitest:firefox": "vitest run --project=firefox",

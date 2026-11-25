@@ -1,5 +1,5 @@
 import { globSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import libCoverage from 'istanbul-lib-coverage';
 import type { CoverageMapData } from 'istanbul-lib-coverage';
@@ -69,9 +69,17 @@ export function createTestCoverageReport(runner: 'cypress' | 'vitest') {
             coverage.addFileCoverage(instrumenter.lastFileCoverage());
         }
 
+        const reportCoverage = libCoverage.createCoverageMap({});
+        for (const filename of coverage.files()) {
+            reportCoverage.addFileCoverage({
+                ...coverage.fileCoverageFor(filename).data,
+                path: relative(root, filename),
+            });
+        }
+
         const context = libReport.createContext({
             dir: join(root, 'dist', 'coverage', runner),
-            coverageMap: coverage,
+            coverageMap: reportCoverage,
         });
         reports.create('json').execute(context);
         reports.create('text-summary').execute(context);

@@ -394,6 +394,16 @@ AppInspect reports any failure or error.
   task sets it on the AppInspect command itself and runs `.venv/bin/splunk-appinspect` directly.
 - To change the AppInspect version, edit `pyproject.toml`, then run `uv lock` inside the repository.
 
+## CI and releases
+
+GitHub Actions runs dedicated jobs for Actionlint, Prettier, TypeScript, and AppInspect. Vitest and
+Cypress each run in a matrix across Chrome, Edge, Firefox, and WebKit. These checks run on pull
+requests into `main`, pushes to `main`, version tags, and manual workflow runs.
+
+The AppInspect job logs its results. Download the validated `fleet_overview.tar.gz` from the
+workflow artifacts. Pushing a tag such as `v0.1.0` publishes the package built from that commit
+to GitHub Releases after all checks pass. The release trigger matches tags starting with `v`.
+
 ## Project structure
 
 ```
