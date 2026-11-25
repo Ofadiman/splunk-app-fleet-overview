@@ -138,6 +138,99 @@ jobs:
                   if-no-files-found: ignore
                   overwrite: true
 
+    cypress-e2e:
+        name: Cypress E2E (${{ matrix.browser }})
+        runs-on: ubuntu-26.04
+        timeout-minutes: 20
+        strategy:
+            fail-fast: false
+            matrix:
+                browser: [chrome, edge, firefox, webkit]
+        env:
+            BROWSER: ${{ matrix.browser }}
+        steps:
+            - uses: actions/checkout@v7.0.1
+              with:
+                  persist-credentials: false
+            - uses: jdx/mise-action@v5.3.0
+              with:
+                  version: 2026.11.2
+                  install_args: node pnpm
+            - name: Install Cypress system dependencies
+              run: |
+                  sudo apt-get update
+                  sudo apt-get install --yes --no-install-recommends \
+                      libgtk-3-0t64 libgbm-dev libnotify-dev libnss3 libxss1 \
+                      libasound2t64 libxtst6 xauth xvfb
+            - name: Install dependencies
+              run: pnpm install --frozen-lockfile
+              env:
+                  PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: ${{ matrix.browser != 'webkit' && '1' || '0' }}
+            - name: Install Cypress WebKit system dependencies
+              if: matrix.browser == 'webkit'
+              run: node node_modules/playwright-webkit/cli.js install-deps webkit
+            - name: Build the Splunk app
+              run: pnpm build
+            - name: Start Splunk
+              run: docker compose up --build --detach --wait --wait-timeout 300 splunk
+            - name: Run Cypress E2E
+              run: pnpm "test:cypress:e2e:$BROWSER"
+            - name: Print Splunk logs on failure
+              if: failure()
+              run: docker compose logs --no-color --tail 100 splunk
+            - name: Upload failure screenshots
+              if: failure()
+              uses: actions/upload-artifact@v7.0.2
+              with:
+                  name: cypress-e2e-${{ matrix.browser }}-failures
+                  path: dist/cypress/e2e/screenshots
+                  if-no-files-found: ignore
+                  overwrite: true
+
+    playwright-e2e:
+        name: Playwright E2E (${{ matrix.browser }})
+        runs-on: ubuntu-26.04
+        timeout-minutes: 20
+        strategy:
+            fail-fast: false
+            matrix:
+                browser: [chrome, edge, firefox, webkit]
+        env:
+            BROWSER: ${{ matrix.browser }}
+        steps:
+            - uses: actions/checkout@v7.0.1
+              with:
+                  persist-credentials: false
+            - uses: jdx/mise-action@v5.3.0
+              with:
+                  version: 2026.11.2
+                  install_args: node pnpm
+            - name: Install dependencies
+              run: pnpm install --frozen-lockfile
+              env:
+                  CYPRESS_INSTALL_BINARY: '0'
+                  PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+            - name: Install the Playwright browser and system dependencies
+              if: matrix.browser == 'firefox' || matrix.browser == 'webkit'
+              run: pnpm exec playwright install --with-deps "$BROWSER"
+            - name: Build the Splunk app
+              run: pnpm build
+            - name: Start Splunk
+              run: docker compose up --build --detach --wait --wait-timeout 300 splunk
+            - name: Run Playwright E2E
+              run: pnpm "test:playwright:e2e:$BROWSER"
+            - name: Print Splunk logs on failure
+              if: failure()
+              run: docker compose logs --no-color --tail 100 splunk
+            - name: Upload failure traces
+              if: failure()
+              uses: actions/upload-artifact@v7.0.2
+              with:
+                  name: playwright-e2e-${{ matrix.browser }}-failures
+                  path: dist/playwright
+                  if-no-files-found: ignore
+                  overwrite: true
+
     appinspect:
         runs-on: macos-26
         timeout-minutes: 15
@@ -166,7 +259,15 @@ jobs:
 
     release:
         if: github.event_name == 'push' && github.ref_type == 'tag'
-        needs: [actionlint, prettier, typescript, vitest, cypress, appinspect]
+        needs:
+            - actionlint
+            - prettier
+            - typescript
+            - vitest
+            - cypress
+            - cypress-e2e
+            - playwright-e2e
+            - appinspect
         runs-on: ubuntu-26.04
         timeout-minutes: 5
         permissions:
