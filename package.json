@@ -26,6 +26,7 @@
     "test:cypress:firefox": "cypress run --component --browser=firefox",
     "test:cypress:webkit": "cypress run --component --browser=webkit --config=experimentalWebKitSupport=true,injectDocumentDomain=true",
     "test:cypress:coverage": "FLEET_TEST_COVERAGE=true cypress run --component --browser=chrome",
+    "test:cypress:e2e": "cypress run --e2e --browser=chrome",
     "test:e2e": "playwright test",
     "test:coverage": "pnpm test:vitest:coverage && pnpm test:cypress:coverage && node scripts/compareTestCoverage.ts",
     "simulate": "node scripts/simulate.ts"

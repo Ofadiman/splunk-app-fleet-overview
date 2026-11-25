@@ -11,6 +11,12 @@ export default defineConfig({
     screenshotsFolder: 'dist/cypress/screenshots',
     viewportWidth: 1280,
     viewportHeight: 720,
+    e2e: {
+        baseUrl: 'http://localhost:18000',
+        specPattern: 'cypress/e2e/**/*.cy.ts',
+        supportFile: false,
+        screenshotsFolder: 'dist/cypress/e2e/screenshots',
+    },
     component: {
         devServer: {
             framework: 'react',
