@@ -6,6 +6,7 @@ export default defineConfig({
     use: {
         baseURL: 'http://localhost:18000',
         trace: 'retain-on-failure',
+        video: process.env.CI ? 'retain-on-failure' : 'off',
     },
     projects: [
         { name: 'chrome', use: { browserName: 'chromium', channel: 'chrome' } },

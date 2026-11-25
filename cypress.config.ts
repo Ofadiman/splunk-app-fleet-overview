@@ -1,3 +1,4 @@
+import { unlink } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'cypress';
 import { sharedComponentSpecs, testAliases, testDependencyOptimization } from './testAliases.ts';
@@ -16,6 +17,19 @@ export default defineConfig({
         specPattern: 'cypress/e2e/**/*.cy.ts',
         supportFile: false,
         screenshotsFolder: 'dist/cypress/e2e/screenshots',
+        video: Boolean(process.env.CI),
+        videoCompression: true,
+        videosFolder: 'dist/cypress/e2e/videos',
+        setupNodeEvents(on) {
+            on('after:spec', async (_spec, results) => {
+                if (!results?.video || results.error) return;
+
+                const hasFailures = results.tests.some((test) =>
+                    test.attempts.some((attempt) => attempt.state === 'failed'),
+                );
+                if (!hasFailures) await unlink(results.video);
+            });
+        },
     },
     component: {
         devServer: {

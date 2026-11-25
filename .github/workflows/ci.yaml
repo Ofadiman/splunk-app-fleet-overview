@@ -166,9 +166,11 @@ jobs:
               run: pnpm install --frozen-lockfile
               env:
                   PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: ${{ matrix.browser != 'webkit' && '1' || '0' }}
-            - name: Install Cypress WebKit system dependencies
+            - name: Install Cypress WebKit system dependencies and video encoder
               if: matrix.browser == 'webkit'
-              run: node node_modules/playwright-webkit/cli.js install-deps webkit
+              run: |
+                  node node_modules/playwright-webkit/cli.js install-deps webkit
+                  node node_modules/playwright-webkit/cli.js install ffmpeg
             - name: Build the Splunk app
               run: pnpm build
             - name: Start Splunk
@@ -194,12 +196,14 @@ jobs:
                   path: dist/splunk-logs
                   if-no-files-found: ignore
                   overwrite: true
-            - name: Upload failure screenshots
+            - name: Upload failure screenshots and videos
               if: failure()
               uses: actions/upload-artifact@v7.0.2
               with:
                   name: cypress-e2e-${{ matrix.browser }}-failures
-                  path: dist/cypress/e2e/screenshots
+                  path: |
+                      dist/cypress/e2e/screenshots
+                      dist/cypress/e2e/videos
                   if-no-files-found: ignore
                   overwrite: true
 
@@ -229,6 +233,9 @@ jobs:
             - name: Install the Playwright browser and system dependencies
               if: matrix.browser == 'firefox' || matrix.browser == 'webkit'
               run: pnpm exec playwright install --with-deps "$BROWSER"
+            - name: Install the Playwright video encoder
+              if: matrix.browser == 'chrome' || matrix.browser == 'edge'
+              run: pnpm exec playwright install ffmpeg
             - name: Build the Splunk app
               run: pnpm build
             - name: Start Splunk
@@ -254,7 +261,7 @@ jobs:
                   path: dist/splunk-logs
                   if-no-files-found: ignore
                   overwrite: true
-            - name: Upload failure traces
+            - name: Upload failure traces and videos
               if: failure()
               uses: actions/upload-artifact@v7.0.2
               with:
