@@ -12,6 +12,10 @@ export default defineConfig({
         { name: 'chrome', use: { browserName: 'chromium', channel: 'chrome' } },
         { name: 'edge', use: { browserName: 'chromium', channel: 'msedge' } },
         { name: 'firefox', use: { browserName: 'firefox' } },
-        { name: 'webkit', use: { browserName: 'webkit' } },
+        {
+            name: 'webkit',
+            ...(process.env.CI && { expect: { timeout: 10_000 } }),
+            use: { browserName: 'webkit' },
+        },
     ],
 });

@@ -1,4 +1,5 @@
 import * as matchers from '@testing-library/jest-dom/matchers';
+import { configure } from '@testing-library/react';
 import {
     ASYMMETRIC_MATCHERS_OBJECT,
     GLOBAL_EXPECT,
@@ -12,6 +13,10 @@ import type { ExpectStatic } from '@vitest/expect';
 import { disableComponentDoubles, enableComponentDoubles } from '../../src/testing/doubles';
 
 export const { afterEach, beforeEach, describe, it } = globalThis;
+
+if (Cypress.browser.name === 'webkit') {
+    configure({ asyncUtilTimeout: Cypress.config('defaultCommandTimeout') });
+}
 
 chai.use(JestExtend);
 chai.use(JestChaiExpect);

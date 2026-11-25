@@ -10,6 +10,7 @@ import {
 
 export default defineConfig({
     screenshotsFolder: 'dist/cypress/screenshots',
+    ...(process.env.CI && process.env.BROWSER === 'webkit' && { defaultCommandTimeout: 10_000 }),
     viewportWidth: 1280,
     viewportHeight: 720,
     e2e: {

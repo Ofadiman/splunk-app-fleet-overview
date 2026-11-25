@@ -70,7 +70,7 @@ jobs:
 
     vitest:
         name: Vitest (${{ matrix.browser }})
-        runs-on: macos-26
+        runs-on: ubuntu-26.04
         timeout-minutes: 20
         strategy:
             fail-fast: false
@@ -91,9 +91,9 @@ jobs:
               env:
                   CYPRESS_INSTALL_BINARY: '0'
                   PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
-            - name: Install the Playwright browser
+            - name: Install the Playwright browser and system dependencies
               if: matrix.browser == 'firefox' || matrix.browser == 'webkit'
-              run: pnpm exec playwright install "$BROWSER"
+              run: pnpm exec playwright install --with-deps "$BROWSER"
             - name: Run Vitest
               run: pnpm "test:vitest:$BROWSER"
             - name: Upload failure screenshots
@@ -107,7 +107,7 @@ jobs:
 
     cypress:
         name: Cypress (${{ matrix.browser }})
-        runs-on: macos-26
+        runs-on: ubuntu-26.04
         timeout-minutes: 20
         strategy:
             fail-fast: false
@@ -123,10 +123,19 @@ jobs:
               with:
                   version: 2026.11.2
                   install_args: node pnpm
+            - name: Install Cypress system dependencies
+              run: |
+                  sudo apt-get update
+                  sudo apt-get install --yes --no-install-recommends \
+                      libgtk-3-0t64 libgbm-dev libnotify-dev libnss3 libxss1 \
+                      libasound2t64 libxtst6 xauth xvfb
             - name: Install dependencies
               run: pnpm install --frozen-lockfile
               env:
                   PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: ${{ matrix.browser != 'webkit' && '1' || '0' }}
+            - name: Install Cypress WebKit system dependencies
+              if: matrix.browser == 'webkit'
+              run: node node_modules/playwright-webkit/cli.js install-deps webkit
             - name: Run Cypress
               run: pnpm "test:cypress:$BROWSER"
             - name: Upload failure screenshots
