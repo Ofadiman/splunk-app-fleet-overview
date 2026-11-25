@@ -175,9 +175,25 @@ jobs:
               run: docker compose up --build --detach --wait --wait-timeout 300 splunk
             - name: Run Cypress E2E
               run: pnpm "test:cypress:e2e:$BROWSER"
-            - name: Print Splunk logs on failure
+            - name: Collect Splunk logs
               if: failure()
-              run: docker compose logs --no-color --tail 100 splunk
+              run: |
+                  if [ ! -f compose.yaml ] || [ -z "$(docker compose ps --all --services splunk)" ]; then
+                      exit 0
+                  fi
+
+                  mkdir --parents dist/splunk-logs
+                  docker compose logs --no-color --timestamps splunk > dist/splunk-logs/console.log 2>&1
+                  tail --lines 100 dist/splunk-logs/console.log
+                  docker compose cp splunk:/opt/splunk/var/log - > dist/splunk-logs/files.tar
+            - name: Upload Splunk logs
+              if: failure()
+              uses: actions/upload-artifact@v7.0.2
+              with:
+                  name: cypress-e2e-${{ matrix.browser }}-splunk-logs
+                  path: dist/splunk-logs
+                  if-no-files-found: ignore
+                  overwrite: true
             - name: Upload failure screenshots
               if: failure()
               uses: actions/upload-artifact@v7.0.2
@@ -219,9 +235,25 @@ jobs:
               run: docker compose up --build --detach --wait --wait-timeout 300 splunk
             - name: Run Playwright E2E
               run: pnpm "test:playwright:e2e:$BROWSER"
-            - name: Print Splunk logs on failure
+            - name: Collect Splunk logs
               if: failure()
-              run: docker compose logs --no-color --tail 100 splunk
+              run: |
+                  if [ ! -f compose.yaml ] || [ -z "$(docker compose ps --all --services splunk)" ]; then
+                      exit 0
+                  fi
+
+                  mkdir --parents dist/splunk-logs
+                  docker compose logs --no-color --timestamps splunk > dist/splunk-logs/console.log 2>&1
+                  tail --lines 100 dist/splunk-logs/console.log
+                  docker compose cp splunk:/opt/splunk/var/log - > dist/splunk-logs/files.tar
+            - name: Upload Splunk logs
+              if: failure()
+              uses: actions/upload-artifact@v7.0.2
+              with:
+                  name: playwright-e2e-${{ matrix.browser }}-splunk-logs
+                  path: dist/splunk-logs
+                  if-no-files-found: ignore
+                  overwrite: true
             - name: Upload failure traces
               if: failure()
               uses: actions/upload-artifact@v7.0.2
