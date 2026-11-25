@@ -5,7 +5,12 @@ export default defineConfig({
     outputDir: './dist/playwright',
     use: {
         baseURL: 'http://localhost:18000',
-        browserName: 'chromium',
         trace: 'retain-on-failure',
     },
+    projects: [
+        { name: 'chrome', use: { browserName: 'chromium', channel: 'chrome' } },
+        { name: 'edge', use: { browserName: 'chromium', channel: 'msedge' } },
+        { name: 'firefox', use: { browserName: 'firefox' } },
+        { name: 'webkit', use: { browserName: 'webkit' } },
+    ],
 });

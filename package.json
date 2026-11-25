@@ -26,8 +26,14 @@
     "test:cypress:firefox": "cypress run --component --browser=firefox",
     "test:cypress:webkit": "cypress run --component --browser=webkit --config=experimentalWebKitSupport=true,injectDocumentDomain=true",
     "test:cypress:coverage": "FLEET_TEST_COVERAGE=true cypress run --component --browser=chrome",
-    "test:cypress:e2e": "cypress run --e2e --browser=chrome",
-    "test:e2e": "playwright test",
+    "test:cypress:e2e:chrome": "cypress run --e2e --browser=chrome",
+    "test:cypress:e2e:edge": "cypress run --e2e --browser=edge",
+    "test:cypress:e2e:firefox": "cypress run --e2e --browser=firefox",
+    "test:cypress:e2e:webkit": "cypress run --e2e --browser=webkit --config=experimentalWebKitSupport=true,injectDocumentDomain=true",
+    "test:playwright:e2e:chrome": "playwright test --project=chrome",
+    "test:playwright:e2e:edge": "playwright test --project=edge",
+    "test:playwright:e2e:firefox": "playwright test --project=firefox",
+    "test:playwright:e2e:webkit": "playwright test --project=webkit",
     "simulate": "node scripts/simulate.ts"
   },
   "dependencies": {

@@ -382,10 +382,17 @@ pnpm build
 docker compose up --detach --wait splunk
 ```
 
-- Run `pnpm test:cypress:e2e` in the installed Chrome browser. Cypress saves failure screenshots in
-  `dist/cypress/e2e/screenshots/`.
-- Install Playwright's Chromium build with `pnpm exec playwright install chromium`, then run
-  `pnpm test:e2e`. Playwright saves failure traces in `dist/playwright/`.
+Use the same browser installations as the [component tests](#browser-tests).
+
+| Browser | Cypress                         | Playwright                         |
+| ------- | ------------------------------- | ---------------------------------- |
+| Chrome  | `pnpm test:cypress:e2e:chrome`  | `pnpm test:playwright:e2e:chrome`  |
+| Edge    | `pnpm test:cypress:e2e:edge`    | `pnpm test:playwright:e2e:edge`    |
+| Firefox | `pnpm test:cypress:e2e:firefox` | `pnpm test:playwright:e2e:firefox` |
+| WebKit  | `pnpm test:cypress:e2e:webkit`  | `pnpm test:playwright:e2e:webkit`  |
+
+Cypress saves failure screenshots in `dist/cypress/e2e/screenshots/`. Playwright saves failure
+traces in `dist/playwright/`.
 
 ## Validating with AppInspect
 
