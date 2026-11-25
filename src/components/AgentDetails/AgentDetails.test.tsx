@@ -1,22 +1,14 @@
+import { expectBoundaryError } from '../../testing/expectBoundaryError';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { oneShot } from '@splunk/splunk-utils/search';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { searchMock as oneShot } from '../../testing/SearchMock';
+import { fn, restoreAllMocks } from '@vitest/spy';
+import { afterEach, beforeEach, describe, expect, it } from '#component-tests';
 import { formatDuration, formatTime, formatTimeAgo } from '../../formatTime';
 import { HOUR_SECONDS, mockTimeParser } from '../../testing/mockTimeParser';
 import { renderWithQueryClient } from '../../testing/renderWithQueryClient';
 import type { ChartTimeRange } from '../TimeRangeControls/TimeRangeControls.types';
 import AgentDetails from './AgentDetails';
-
-vi.mock('@splunk/splunk-utils/search', () => ({ oneShot: vi.fn() }));
-vi.mock('@splunk/visualizations/Column', () => ({
-    __esModule: true,
-    default: vi.fn(() => null),
-}));
-vi.mock(
-    '@splunk/react-time-range/SplunkwebConnector',
-    () => import('../../testing/SplunkwebConnectorMock'),
-);
 
 const guid = '316BB7CA-93DC-4C3C-BE06-D154E9A38A0C';
 
@@ -39,11 +31,9 @@ const isSummarySearch = (params: unknown) =>
     String((params as { search: string }).search).includes('values(data.lastPhoneHomeTime)');
 
 const answerSummaryWith = (summary: Promise<unknown>) =>
-    vi
-        .mocked(oneShot)
-        .mockImplementation((params) =>
-            isSummarySearch(params) ? summary : new Promise(() => {}),
-        );
+    oneShot.mockImplementation((params) =>
+        isSummarySearch(params) ? summary : new Promise(() => {}),
+    );
 
 const summaryResults = (row?: Record<string, string | number>) => ({
     preview: false,
@@ -53,23 +43,21 @@ const summaryResults = (row?: Record<string, string | number>) => ({
     results: row ? [row] : [],
 });
 
-const renderDetails = (onTimeRangeChange = vi.fn()) =>
+const renderDetails = (onTimeRangeChange = fn()) =>
     renderWithQueryClient(
         <AgentDetails guid={guid} timeRange={timeRange} onTimeRangeChange={onTimeRangeChange} />,
     );
 
 const valueOf = (term: string) => screen.getByText(term).nextElementSibling?.textContent;
 
-const silenceErrorBoundaryLogs = () => vi.spyOn(console, 'error').mockImplementation(() => {});
-
 describe('AgentDetails', () => {
     beforeEach(() => {
         mockTimeParser();
-        vi.mocked(oneShot).mockReset();
+        oneShot.mockReset();
     });
 
     afterEach(() => {
-        vi.restoreAllMocks();
+        restoreAllMocks();
     });
 
     it('shows the GUID and a loading message while the search runs', async () => {
@@ -211,9 +199,9 @@ describe('AgentDetails', () => {
     });
 
     it('runs the search again when you try again after it fails', async () => {
-        silenceErrorBoundaryLogs();
+        expectBoundaryError('Search job quota exceeded');
         let attempts = 0;
-        vi.mocked(oneShot).mockImplementation((params) => {
+        oneShot.mockImplementation((params) => {
             if (!isSummarySearch(params)) {
                 return new Promise(() => {});
             }

@@ -1,16 +1,11 @@
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { oneShot } from '@splunk/splunk-utils/search';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { searchMock as oneShot } from '../../testing/SearchMock';
+import { restoreAllMocks } from '@vitest/spy';
+import { afterEach, beforeEach, describe, expect, it } from '#component-tests';
 import { DAY_SECONDS, mockTimeParser } from '../../testing/mockTimeParser';
 import { renderWithRouter } from '../../testing/renderWithRouter';
 import Home from './Home';
-
-vi.mock('@splunk/splunk-utils/search', () => ({ oneShot: vi.fn(() => new Promise(() => {})) }));
-vi.mock(
-    '@splunk/react-time-range/SplunkwebConnector',
-    () => import('../../testing/SplunkwebConnectorMock'),
-);
 
 const AgentsPage = () => <h1>Agents page</h1>;
 
@@ -32,12 +27,12 @@ const renderHome = async (initialPath = '/home') => {
 
 describe('Home', () => {
     beforeEach(() => {
-        vi.mocked(oneShot).mockClear();
+        oneShot.mockReset().mockImplementation(() => new Promise(() => {}));
         mockTimeParser({ '-7d@h': 7 * DAY_SECONDS });
     });
 
     afterEach(() => {
-        vi.restoreAllMocks();
+        restoreAllMocks();
     });
 
     it('renders the page heading', async () => {

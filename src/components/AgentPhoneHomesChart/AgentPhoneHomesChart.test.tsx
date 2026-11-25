@@ -1,18 +1,14 @@
+import { expectBoundaryError } from '../../testing/expectBoundaryError';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { oneShot } from '@splunk/splunk-utils/search';
-import Column from '@splunk/visualizations/Column';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { searchMock as oneShot } from '../../testing/SearchMock';
+import { columnMock as Column } from '../../testing/ColumnMock';
+import { restoreAllMocks } from '@vitest/spy';
+import { afterEach, beforeEach, describe, expect, it } from '#component-tests';
 import { mockTimeParser } from '../../testing/mockTimeParser';
 import { renderWithQueryClient } from '../../testing/renderWithQueryClient';
 import type { ChartTimeRange } from '../TimeRangeControls/TimeRangeControls.types';
 import AgentPhoneHomesChart from './AgentPhoneHomesChart';
-
-vi.mock('@splunk/splunk-utils/search', () => ({ oneShot: vi.fn() }));
-vi.mock('@splunk/visualizations/Column', () => ({
-    __esModule: true,
-    default: vi.fn(() => null),
-}));
 
 const guid = '316BB7CA-93DC-4C3C-BE06-D154E9A38A0C';
 
@@ -26,28 +22,26 @@ const searchResults = (counts: string[]) => ({
     columns: [hours, counts],
 });
 
-const chartProps = () => vi.mocked(Column).mock.lastCall?.[0];
+const chartProps = () => Column.mock.lastCall?.[0];
 
 const timeRange: ChartTimeRange = { earliest: '-24h@h', latest: 'now', resolution: '1h' };
 
 const renderChart = () =>
     renderWithQueryClient(<AgentPhoneHomesChart guid={guid} timeRange={timeRange} />);
 
-const silenceErrorBoundaryLogs = () => vi.spyOn(console, 'error').mockImplementation(() => {});
-
 describe('AgentPhoneHomesChart', () => {
     beforeEach(() => {
         mockTimeParser();
-        vi.mocked(oneShot).mockReset();
-        vi.mocked(Column).mockClear();
+        oneShot.mockReset();
+        Column.mockClear();
     });
 
     afterEach(() => {
-        vi.restoreAllMocks();
+        restoreAllMocks();
     });
 
     it('shows a loading message while the search runs', async () => {
-        vi.mocked(oneShot).mockReturnValue(new Promise(() => {}));
+        oneShot.mockReturnValue(new Promise(() => {}));
 
         renderChart();
         await waitFor(() => expect(oneShot).toHaveBeenCalled());
@@ -62,7 +56,7 @@ describe('AgentPhoneHomesChart', () => {
     });
 
     it('draws the count of each interval', async () => {
-        vi.mocked(oneShot).mockResolvedValue(searchResults(['1', '0']));
+        oneShot.mockResolvedValue(searchResults(['1', '0']));
 
         renderChart();
 
@@ -76,7 +70,7 @@ describe('AgentPhoneHomesChart', () => {
     });
 
     it('tells when every interval is empty', async () => {
-        vi.mocked(oneShot).mockResolvedValue(searchResults(['0', '0']));
+        oneShot.mockResolvedValue(searchResults(['0', '0']));
 
         renderChart();
 
@@ -85,7 +79,7 @@ describe('AgentPhoneHomesChart', () => {
     });
 
     it('tells when the search finds nothing', async () => {
-        vi.mocked(oneShot).mockResolvedValue({ fields: [], columns: [] });
+        oneShot.mockResolvedValue({ fields: [], columns: [] });
 
         renderChart();
 
@@ -93,7 +87,7 @@ describe('AgentPhoneHomesChart', () => {
     });
 
     it('searches only this agent in buckets of the chosen resolution', async () => {
-        vi.mocked(oneShot).mockResolvedValue(searchResults(['1', '0']));
+        oneShot.mockResolvedValue(searchResults(['1', '0']));
 
         renderChart();
         await waitFor(() => expect(oneShot).toHaveBeenCalled());
@@ -113,8 +107,8 @@ describe('AgentPhoneHomesChart', () => {
     });
 
     it('shows the error when the search fails', async () => {
-        silenceErrorBoundaryLogs();
-        vi.mocked(oneShot).mockRejectedValue(new Error('Search job quota exceeded'));
+        expectBoundaryError('Search job quota exceeded');
+        oneShot.mockRejectedValue(new Error('Search job quota exceeded'));
 
         renderChart();
 
@@ -123,8 +117,8 @@ describe('AgentPhoneHomesChart', () => {
     });
 
     it('runs the search again when you try again after it fails', async () => {
-        silenceErrorBoundaryLogs();
-        vi.mocked(oneShot)
+        expectBoundaryError('Search job quota exceeded');
+        oneShot
             .mockRejectedValueOnce(new Error('Search job quota exceeded'))
             .mockResolvedValueOnce(searchResults(['2', '1']));
 

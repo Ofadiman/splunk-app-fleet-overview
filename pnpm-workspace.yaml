@@ -1,3 +1,5 @@
 allowBuilds:
   '@swc/core': false
+  cypress: true
   esbuild: false
+  playwright-webkit: true

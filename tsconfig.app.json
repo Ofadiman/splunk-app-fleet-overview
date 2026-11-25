@@ -8,5 +8,5 @@
     "moduleResolution": "bundler",
     "jsx": "react-jsx"
   },
-  "include": ["src"]
+  "include": ["src", "vitest.setup.ts"]
 }

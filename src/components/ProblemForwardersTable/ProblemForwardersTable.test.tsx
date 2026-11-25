@@ -1,14 +1,14 @@
+import { expectBoundaryError } from '../../testing/expectBoundaryError';
 import { useState } from 'react';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { oneShot } from '@splunk/splunk-utils/search';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { searchMock as oneShot } from '../../testing/SearchMock';
+import { fn, restoreAllMocks } from '@vitest/spy';
+import { afterEach, beforeEach, describe, expect, it } from '#component-tests';
 import { renderWithRouter } from '../../testing/renderWithRouter';
 import type { ChartTimeRange } from '../TimeRangeControls/TimeRangeControls.types';
 import ProblemForwardersTable from './ProblemForwardersTable';
 import type { ForwarderSort } from './ProblemForwardersTable.types';
-
-vi.mock('@splunk/splunk-utils/search', () => ({ oneShot: vi.fn() }));
 
 const timeRange: ChartTimeRange = { earliest: '-4h@m', latest: 'now', resolution: '15m' };
 
@@ -46,7 +46,7 @@ const renderOnPage = (Page: () => JSX.Element) =>
     renderWithRouter('/home', { '/home': Page, '/agents': AgentsPage });
 
 const renderTable = (sort: ForwarderSort = { column: 'failingApps', order: 'desc' }) => {
-    const onSortChange = vi.fn();
+    const onSortChange = fn();
     const rendered = renderOnPage(() => (
         <ProblemForwardersTable timeRange={timeRange} sort={sort} onSortChange={onSortChange} />
     ));
@@ -70,19 +70,17 @@ const cellTexts = (row: HTMLElement) =>
         .getAllByRole('cell')
         .map((cell) => cell.textContent);
 
-const silenceErrorBoundaryLogs = () => vi.spyOn(console, 'error').mockImplementation(() => {});
-
 describe('ProblemForwardersTable', () => {
     beforeEach(() => {
-        vi.mocked(oneShot).mockReset();
+        oneShot.mockReset();
     });
 
     afterEach(() => {
-        vi.restoreAllMocks();
+        restoreAllMocks();
     });
 
     it('shows the column headings and a loading message while the search runs', async () => {
-        vi.mocked(oneShot).mockReturnValue(new Promise(() => {}));
+        oneShot.mockReturnValue(new Promise(() => {}));
 
         renderTable();
         await waitFor(() => expect(oneShot).toHaveBeenCalled());
@@ -100,7 +98,7 @@ describe('ProblemForwardersTable', () => {
     });
 
     it('explains what each count means in its heading', async () => {
-        vi.mocked(oneShot).mockReturnValue(new Promise(() => {}));
+        oneShot.mockReturnValue(new Promise(() => {}));
 
         renderTable();
         await waitFor(() => expect(oneShot).toHaveBeenCalled());
@@ -117,7 +115,7 @@ describe('ProblemForwardersTable', () => {
     });
 
     it('lists each forwarder with its failing apps, failing hours and reconnects', async () => {
-        vi.mocked(oneShot).mockResolvedValue(searchResults([stuck, crashing]));
+        oneShot.mockResolvedValue(searchResults([stuck, crashing]));
 
         renderTable();
 
@@ -130,7 +128,7 @@ describe('ProblemForwardersTable', () => {
     });
 
     it('links each forwarder to its agent page with the same time range', async () => {
-        vi.mocked(oneShot).mockResolvedValue(searchResults([stuck, crashing]));
+        oneShot.mockResolvedValue(searchResults([stuck, crashing]));
 
         const { router } = renderTable();
         await userEvent.click(await screen.findByRole('link', { name: 'triss' }));
@@ -146,7 +144,7 @@ describe('ProblemForwardersTable', () => {
     });
 
     it('shows the GUID when the name is unknown, and a dash for an unknown host or version', async () => {
-        vi.mocked(oneShot).mockResolvedValue(
+        oneShot.mockResolvedValue(
             searchResults([
                 { clientId: stuck.clientId, failingApps: '1', failingHours: '3', reconnects: '0' },
             ]),
@@ -159,7 +157,7 @@ describe('ProblemForwardersTable', () => {
     });
 
     it('says it shows every forwarder when the search found no more', async () => {
-        vi.mocked(oneShot).mockResolvedValue(searchResults([stuck, crashing]));
+        oneShot.mockResolvedValue(searchResults([stuck, crashing]));
 
         renderTable();
 
@@ -167,7 +165,7 @@ describe('ProblemForwardersTable', () => {
     });
 
     it('says it shows the only forwarder when the search found one', async () => {
-        vi.mocked(oneShot).mockResolvedValue(searchResults([stuck]));
+        oneShot.mockResolvedValue(searchResults([stuck]));
 
         renderTable();
 
@@ -175,7 +173,7 @@ describe('ProblemForwardersTable', () => {
     });
 
     it('says how many forwarders the search found when it shows only the top ones', async () => {
-        vi.mocked(oneShot).mockResolvedValue(searchResults([stuck, crashing], 515));
+        oneShot.mockResolvedValue(searchResults([stuck, crashing], 515));
 
         renderTable();
 
@@ -183,7 +181,7 @@ describe('ProblemForwardersTable', () => {
     });
 
     it('tells when no forwarder failed to deploy an app or reconnected', async () => {
-        vi.mocked(oneShot).mockResolvedValue(searchResults([]));
+        oneShot.mockResolvedValue(searchResults([]));
 
         renderTable();
 
@@ -194,7 +192,7 @@ describe('ProblemForwardersTable', () => {
     });
 
     it('marks the column and the order it sorts by', async () => {
-        vi.mocked(oneShot).mockResolvedValue(searchResults([stuck, crashing]));
+        oneShot.mockResolvedValue(searchResults([stuck, crashing]));
 
         renderTable({ column: 'reconnects', order: 'asc' });
 
@@ -205,7 +203,7 @@ describe('ProblemForwardersTable', () => {
     });
 
     it('doesn’t sort by the name, host or version', async () => {
-        vi.mocked(oneShot).mockResolvedValue(searchResults([stuck, crashing]));
+        oneShot.mockResolvedValue(searchResults([stuck, crashing]));
 
         renderTable();
 
@@ -216,7 +214,7 @@ describe('ProblemForwardersTable', () => {
     });
 
     it('sorts by another column from the highest count when you click its heading', async () => {
-        vi.mocked(oneShot).mockResolvedValue(searchResults([stuck, crashing]));
+        oneShot.mockResolvedValue(searchResults([stuck, crashing]));
 
         const { onSortChange } = renderTable();
         await waitFor(() => expect(bodyRows()).toHaveLength(2));
@@ -226,7 +224,7 @@ describe('ProblemForwardersTable', () => {
     });
 
     it('reverses the order when you click the heading of the sorted column', async () => {
-        vi.mocked(oneShot).mockResolvedValue(searchResults([stuck, crashing]));
+        oneShot.mockResolvedValue(searchResults([stuck, crashing]));
 
         const { onSortChange } = renderTable({ column: 'failingHours', order: 'desc' });
         await waitFor(() => expect(bodyRows()).toHaveLength(2));
@@ -236,7 +234,7 @@ describe('ProblemForwardersTable', () => {
     });
 
     it('sorts from the highest count again after the lowest', async () => {
-        vi.mocked(oneShot).mockResolvedValue(searchResults([stuck, crashing]));
+        oneShot.mockResolvedValue(searchResults([stuck, crashing]));
 
         const { onSortChange } = renderTable({ column: 'failingHours', order: 'asc' });
         await waitFor(() => expect(bodyRows()).toHaveLength(2));
@@ -246,7 +244,7 @@ describe('ProblemForwardersTable', () => {
     });
 
     it('keeps the rows in place while it loads another sort', async () => {
-        vi.mocked(oneShot)
+        oneShot
             .mockResolvedValueOnce(searchResults([stuck, crashing]))
             .mockReturnValueOnce(new Promise(() => {}));
 
@@ -266,7 +264,7 @@ describe('ProblemForwardersTable', () => {
     });
 
     it('shows the rows in the new order once it loads them', async () => {
-        vi.mocked(oneShot)
+        oneShot
             .mockResolvedValueOnce(searchResults([stuck, crashing]))
             .mockResolvedValueOnce(searchResults([crashing, stuck]));
 
@@ -287,7 +285,7 @@ describe('ProblemForwardersTable', () => {
             clientId: `client-${index}`,
             name: `forwarder-${index}`,
         }));
-        vi.mocked(oneShot)
+        oneShot
             .mockResolvedValueOnce(searchResults([stuck, crashing, ...otherForwarders]))
             .mockResolvedValueOnce(searchResults([crashing, stuck, ...otherForwarders]));
 
@@ -313,7 +311,7 @@ describe('ProblemForwardersTable', () => {
     });
 
     it('searches the time range for the top 100 forwarders by the sorted column', async () => {
-        vi.mocked(oneShot).mockResolvedValue(searchResults([stuck, crashing]));
+        oneShot.mockResolvedValue(searchResults([stuck, crashing]));
 
         renderTable({ column: 'failingHours', order: 'desc' });
         await waitFor(() => expect(oneShot).toHaveBeenCalled());
@@ -334,7 +332,7 @@ describe('ProblemForwardersTable', () => {
     });
 
     it('searches for the lowest counts first when the order is ascending', async () => {
-        vi.mocked(oneShot).mockResolvedValue(searchResults([stuck, crashing]));
+        oneShot.mockResolvedValue(searchResults([stuck, crashing]));
 
         renderTable({ column: 'reconnects', order: 'asc' });
         await waitFor(() => expect(oneShot).toHaveBeenCalled());
@@ -352,8 +350,8 @@ describe('ProblemForwardersTable', () => {
     });
 
     it('shows the error when the search fails', async () => {
-        silenceErrorBoundaryLogs();
-        vi.mocked(oneShot).mockRejectedValue(new Error('Search job quota exceeded'));
+        expectBoundaryError('Search job quota exceeded');
+        oneShot.mockRejectedValue(new Error('Search job quota exceeded'));
 
         renderTable();
 
@@ -362,8 +360,8 @@ describe('ProblemForwardersTable', () => {
     });
 
     it('runs the search again when you try again after it fails', async () => {
-        silenceErrorBoundaryLogs();
-        vi.mocked(oneShot)
+        expectBoundaryError('Search job quota exceeded');
+        oneShot
             .mockRejectedValueOnce(new Error('Search job quota exceeded'))
             .mockResolvedValueOnce(searchResults([stuck]));
 

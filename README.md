@@ -338,20 +338,39 @@ Run `pnpm dev` to rebuild `dist/fleet_overview/` on every change, then refresh t
 - `pnpm dev` - Rebuild the app into `dist/fleet_overview/` on every change
 - `pnpm build` - Type-check and build the app into `dist/fleet_overview/`
 - `pnpm package` - Build and create `dist/fleet_overview.tar.gz`, installable in Splunk
-- `pnpm test:chrome` / `pnpm test:edge` - Run tests in the installed Google Chrome or Microsoft Edge
-- `pnpm test:firefox` / `pnpm test:webkit` - Run tests in Playwright's Firefox or WebKit builds
 - `pnpm format` / `pnpm format:verify` - Format code with Prettier, or check formatting
 - `pnpm simulate` - Backfill and keep writing the events of 25,000
   [simulated forwarders](#simulated-fleet) into `.simulation/`
 - `mise run appinspect` - Package the app and validate it with Splunk AppInspect
 
-Install Chrome and Edge separately. Download Playwright's Firefox and WebKit builds with
-`pnpm exec playwright install firefox webkit`. The WebKit command tests the engine Safari uses.
+### Browser tests
+
+| Browser | Vitest                     | Cypress component tests     |
+| ------- | -------------------------- | --------------------------- |
+| Chrome  | `pnpm test:vitest:chrome`  | `pnpm test:cypress:chrome`  |
+| Edge    | `pnpm test:vitest:edge`    | `pnpm test:cypress:edge`    |
+| Firefox | `pnpm test:vitest:firefox` | `pnpm test:cypress:firefox` |
+| WebKit  | `pnpm test:vitest:webkit`  | `pnpm test:cypress:webkit`  |
+
+Install Chrome and Edge for both suites, and install Firefox for Cypress. `pnpm install` installs
+Cypress and its WebKit build. Download the browser builds used by Vitest with
+`pnpm exec playwright install firefox webkit`. Both WebKit commands cover Safari's engine.
+Cypress WebKit support is experimental and uses the Playwright WebKit version Cypress tests against.
+
+Both runners execute the component specs under `src/`. Use `#component-tests` for hooks and assertions
+in shared specs. Cypress also runs three integration cases under `cypress/components/` that stub
+Splunk HTTP responses and check chart rendering, table sorting, and navigation from a forwarder row
+to its agent details.
+
+Run `pnpm test:coverage` to run both suites in Chrome and check that they cover the same statements,
+functions, and branches in the app source. Run `pnpm test:vitest:coverage` or
+`pnpm test:cypress:coverage` for an individual report. The reports are saved as
+`dist/coverage/vitest/coverage-final.json` and `dist/coverage/cypress/coverage-final.json`.
 
 Generated files go to `dist/`, which git ignores. This includes the app in `dist/fleet_overview/`,
 the package `dist/fleet_overview.tar.gz`, the AppInspect report `dist/appinspect.json`, and test
-failure screenshots in `dist/test-attachments/`. `pnpm simulate` writes to `.simulation/`, which
-git ignores too.
+failure screenshots in `dist/test-attachments/` for Vitest and `dist/cypress/screenshots/` for
+Cypress. `pnpm simulate` writes to `.simulation/`, which git ignores too.
 
 ## Validating with AppInspect
 
@@ -618,7 +637,7 @@ runs:
   which names the index they need.
 - `_dsphonehome` keeps events for 7 days. Locally, it starts empty on every
   `docker compose up --renew-anon-volumes`.
-- `@splunk/visualizations` is large: it makes every page script about 1.4 MB gzipped, up from about
+- `@splunk/visualizations` is large: it makes every page script about 1.6 MB gzipped, up from about
   0.2 MB. The time range picker adds about 0.07 MB more. The build inlines dynamic imports, so lazy
   loading doesn't split them out.
 - Tests mock `Line` to check the data and options passed to the chart.

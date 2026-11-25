@@ -43,7 +43,7 @@ for (const [index, view] of views.entries()) {
         build: {
             copyPublicDir: index === 0,
             watch: watch ? {} : null,
-            rollupOptions: {
+            rolldownOptions: {
                 input: { [view]: entry },
             },
         },

@@ -1,18 +1,14 @@
+import { expectBoundaryError } from '../../testing/expectBoundaryError';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { oneShot } from '@splunk/splunk-utils/search';
-import Column from '@splunk/visualizations/Column';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { searchMock as oneShot } from '../../testing/SearchMock';
+import { columnMock as Column } from '../../testing/ColumnMock';
+import { restoreAllMocks } from '@vitest/spy';
+import { afterEach, beforeEach, describe, expect, it } from '#component-tests';
 import { mockTimeParser } from '../../testing/mockTimeParser';
 import { renderWithQueryClient } from '../../testing/renderWithQueryClient';
 import type { ChartTimeRange } from '../TimeRangeControls/TimeRangeControls.types';
 import ForwarderReconnectsChart from './ForwarderReconnectsChart';
-
-vi.mock('@splunk/splunk-utils/search', () => ({ oneShot: vi.fn() }));
-vi.mock('@splunk/visualizations/Column', () => ({
-    __esModule: true,
-    default: vi.fn(() => null),
-}));
 
 const searchResults = (times: string[], counts: string[]) => ({
     preview: false,
@@ -22,27 +18,25 @@ const searchResults = (times: string[], counts: string[]) => ({
     columns: [times, counts],
 });
 
-const chartData = () => vi.mocked(Column).mock.lastCall?.[0].dataSources.primary.data;
+const chartData = () => Column.mock.lastCall?.[0].dataSources.primary.data;
 
-const chartOptions = () => vi.mocked(Column).mock.lastCall?.[0].options;
+const chartOptions = () => Column.mock.lastCall?.[0].options;
 
 const timeRange: ChartTimeRange = { earliest: '-24h@h', latest: 'now', resolution: '1h' };
-
-const silenceErrorBoundaryLogs = () => vi.spyOn(console, 'error').mockImplementation(() => {});
 
 describe('ForwarderReconnectsChart', () => {
     beforeEach(() => {
         mockTimeParser();
-        vi.mocked(oneShot).mockReset();
-        vi.mocked(Column).mockClear();
+        oneShot.mockReset();
+        Column.mockClear();
     });
 
     afterEach(() => {
-        vi.restoreAllMocks();
+        restoreAllMocks();
     });
 
     it('shows a loading message while the search runs', async () => {
-        vi.mocked(oneShot).mockReturnValue(new Promise(() => {}));
+        oneShot.mockReturnValue(new Promise(() => {}));
 
         renderWithQueryClient(<ForwarderReconnectsChart timeRange={timeRange} />);
         await waitFor(() => expect(oneShot).toHaveBeenCalled());
@@ -59,7 +53,7 @@ describe('ForwarderReconnectsChart', () => {
     });
 
     it('draws the number of reconnects per minute', async () => {
-        vi.mocked(oneShot).mockResolvedValue(
+        oneShot.mockResolvedValue(
             searchResults(
                 ['2026-11-14T18:18:00.000+00:00', '2026-11-14T18:19:00.000+00:00'],
                 ['3', '0'],
@@ -81,7 +75,7 @@ describe('ForwarderReconnectsChart', () => {
     });
 
     it('marks the y-axis in whole reconnects when there are few', async () => {
-        vi.mocked(oneShot).mockResolvedValue(
+        oneShot.mockResolvedValue(
             searchResults(
                 ['2026-11-14T18:18:00.000+00:00', '2026-11-14T18:19:00.000+00:00'],
                 ['2', '0'],
@@ -94,7 +88,7 @@ describe('ForwarderReconnectsChart', () => {
     });
 
     it('marks the y-axis in pairs of reconnects when there are up to ten', async () => {
-        vi.mocked(oneShot).mockResolvedValue(
+        oneShot.mockResolvedValue(
             searchResults(
                 ['2026-11-14T18:18:00.000+00:00', '2026-11-14T18:19:00.000+00:00'],
                 ['7', '0'],
@@ -107,7 +101,7 @@ describe('ForwarderReconnectsChart', () => {
     });
 
     it('lets the chart space the y-axis marks when there are many reconnects', async () => {
-        vi.mocked(oneShot).mockResolvedValue(
+        oneShot.mockResolvedValue(
             searchResults(
                 ['2026-11-14T18:18:00.000+00:00', '2026-11-14T18:19:00.000+00:00'],
                 ['40', '6'],
@@ -120,7 +114,7 @@ describe('ForwarderReconnectsChart', () => {
     });
 
     it('tells when no forwarder reconnected', async () => {
-        vi.mocked(oneShot).mockResolvedValue({ fields: [], columns: [] });
+        oneShot.mockResolvedValue({ fields: [], columns: [] });
 
         renderWithQueryClient(<ForwarderReconnectsChart timeRange={timeRange} />);
 
@@ -131,8 +125,8 @@ describe('ForwarderReconnectsChart', () => {
     });
 
     it('shows the error when the search fails', async () => {
-        silenceErrorBoundaryLogs();
-        vi.mocked(oneShot).mockRejectedValue(new Error('Search job quota exceeded'));
+        expectBoundaryError('Search job quota exceeded');
+        oneShot.mockRejectedValue(new Error('Search job quota exceeded'));
 
         renderWithQueryClient(<ForwarderReconnectsChart timeRange={timeRange} />);
 
@@ -141,8 +135,8 @@ describe('ForwarderReconnectsChart', () => {
     });
 
     it('runs the search again when you try again after it fails', async () => {
-        silenceErrorBoundaryLogs();
-        vi.mocked(oneShot)
+        expectBoundaryError('Search job quota exceeded');
+        oneShot
             .mockRejectedValueOnce(new Error('Search job quota exceeded'))
             .mockResolvedValueOnce(searchResults(['2026-11-14T18:18:00.000+00:00'], ['3']));
 
@@ -154,9 +148,7 @@ describe('ForwarderReconnectsChart', () => {
     });
 
     it('searches the time range in buckets of the chosen resolution', async () => {
-        vi.mocked(oneShot).mockResolvedValue(
-            searchResults(['2026-11-13T10:00:00.000+00:00'], ['2']),
-        );
+        oneShot.mockResolvedValue(searchResults(['2026-11-13T10:00:00.000+00:00'], ['2']));
 
         renderWithQueryClient(<ForwarderReconnectsChart timeRange={timeRange} />);
         await waitFor(() => expect(oneShot).toHaveBeenCalled());

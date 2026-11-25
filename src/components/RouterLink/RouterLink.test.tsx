@@ -1,6 +1,6 @@
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect } from '#component-tests';
 import { renderWithRouter } from '../../testing/renderWithRouter';
 import RouterLink from './RouterLink';
 

@@ -1,12 +1,12 @@
+import { expectBoundaryError } from '../../testing/expectBoundaryError';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { oneShot } from '@splunk/splunk-utils/search';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { searchMock as oneShot } from '../../testing/SearchMock';
+import { restoreAllMocks } from '@vitest/spy';
+import { afterEach, beforeEach, describe, expect, it } from '#component-tests';
 import { formatTime } from '../../formatTime';
 import { renderWithQueryClient } from '../../testing/renderWithQueryClient';
 import AgentAppsTable from './AgentAppsTable';
-
-vi.mock('@splunk/splunk-utils/search', () => ({ oneShot: vi.fn() }));
 
 const guid = '316BB7CA-93DC-4C3C-BE06-D154E9A38A0C';
 
@@ -43,19 +43,17 @@ const cellTexts = (row: HTMLElement) =>
         .getAllByRole('cell')
         .map((cell) => cell.textContent);
 
-const silenceErrorBoundaryLogs = () => vi.spyOn(console, 'error').mockImplementation(() => {});
-
 describe('AgentAppsTable', () => {
     beforeEach(() => {
-        vi.mocked(oneShot).mockReset();
+        oneShot.mockReset();
     });
 
     afterEach(() => {
-        vi.restoreAllMocks();
+        restoreAllMocks();
     });
 
     it('shows a loading message while the search runs', async () => {
-        vi.mocked(oneShot).mockReturnValue(new Promise(() => {}));
+        oneShot.mockReturnValue(new Promise(() => {}));
 
         renderWithQueryClient(<AgentAppsTable guid={guid} />);
         await waitFor(() => expect(oneShot).toHaveBeenCalled());
@@ -65,7 +63,7 @@ describe('AgentAppsTable', () => {
     });
 
     it('shows the latest state of each app', async () => {
-        vi.mocked(oneShot).mockResolvedValue(searchResults([stuck, installed]));
+        oneShot.mockResolvedValue(searchResults([stuck, installed]));
 
         renderWithQueryClient(<AgentAppsTable guid={guid} />);
 
@@ -77,7 +75,7 @@ describe('AgentAppsTable', () => {
     });
 
     it('tells when the deployment server sent the agent no apps', async () => {
-        vi.mocked(oneShot).mockResolvedValue(searchResults([]));
+        oneShot.mockResolvedValue(searchResults([]));
 
         renderWithQueryClient(<AgentAppsTable guid={guid} />);
 
@@ -86,7 +84,7 @@ describe('AgentAppsTable', () => {
     });
 
     it('searches all the app events of this agent that the index keeps', async () => {
-        vi.mocked(oneShot).mockResolvedValue(searchResults([]));
+        oneShot.mockResolvedValue(searchResults([]));
 
         renderWithQueryClient(<AgentAppsTable guid={guid} />);
         await waitFor(() => expect(oneShot).toHaveBeenCalled());
@@ -104,8 +102,8 @@ describe('AgentAppsTable', () => {
     });
 
     it('runs the search again when you try again after it fails', async () => {
-        silenceErrorBoundaryLogs();
-        vi.mocked(oneShot)
+        expectBoundaryError('Search job quota exceeded');
+        oneShot
             .mockRejectedValueOnce(new Error('Search job quota exceeded'))
             .mockResolvedValueOnce(searchResults([installed]));
 

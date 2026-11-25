@@ -1,20 +1,11 @@
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { oneShot } from '@splunk/splunk-utils/search';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { searchMock as oneShot } from '../../testing/SearchMock';
+import { restoreAllMocks } from '@vitest/spy';
+import { afterEach, beforeEach, describe, expect, it } from '#component-tests';
 import { DAY_SECONDS, mockTimeParser } from '../../testing/mockTimeParser';
 import { renderWithRouter } from '../../testing/renderWithRouter';
 import Agents from './Agents';
-
-vi.mock('@splunk/splunk-utils/search', () => ({ oneShot: vi.fn() }));
-vi.mock('@splunk/visualizations/Column', () => ({
-    __esModule: true,
-    default: vi.fn(() => null),
-}));
-vi.mock(
-    '@splunk/react-time-range/SplunkwebConnector',
-    () => import('../../testing/SplunkwebConnectorMock'),
-);
 
 const guid = '316BB7CA-93DC-4C3C-BE06-D154E9A38A0C';
 
@@ -35,8 +26,8 @@ const searchedWith = (expected: Record<string, unknown>) =>
 describe('Agents', () => {
     beforeEach(() => {
         mockTimeParser({ '-7d@h': 7 * DAY_SECONDS });
-        vi.mocked(oneShot).mockReset();
-        vi.mocked(oneShot).mockImplementation((params) =>
+        oneShot.mockReset();
+        oneShot.mockImplementation((params) =>
             String((params as { search: string }).search).includes('values(data.lastPhoneHomeTime)')
                 ? Promise.resolve({ results: [{ name: 'triss', host: 'triss.splunk.com' }] })
                 : new Promise(() => {}),
@@ -44,7 +35,7 @@ describe('Agents', () => {
     });
 
     afterEach(() => {
-        vi.restoreAllMocks();
+        restoreAllMocks();
     });
 
     it('asks to pick an agent when the URL has no GUID', async () => {

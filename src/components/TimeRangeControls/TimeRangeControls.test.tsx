@@ -1,15 +1,11 @@
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { fn, restoreAllMocks } from '@vitest/spy';
+import { afterEach, beforeEach, describe, expect, it } from '#component-tests';
 import { DAY_SECONDS, HOUR_SECONDS, mockTimeParser } from '../../testing/mockTimeParser';
 import { renderWithQueryClient } from '../../testing/renderWithQueryClient';
 import TimeRangeControls from './TimeRangeControls';
 import type { ChartTimeRange } from './TimeRangeControls.types';
-
-vi.mock(
-    '@splunk/react-time-range/SplunkwebConnector',
-    () => import('../../testing/SplunkwebConnectorMock'),
-);
 
 const lastDay: ChartTimeRange = { earliest: '-24h@h', latest: 'now', resolution: '1h' };
 
@@ -29,18 +25,18 @@ describe('TimeRangeControls', () => {
     });
 
     afterEach(() => {
-        vi.restoreAllMocks();
+        restoreAllMocks();
     });
 
     it('shows the time range and the resolution', () => {
-        renderWithQueryClient(<TimeRangeControls value={lastDay} onChange={vi.fn()} />);
+        renderWithQueryClient(<TimeRangeControls value={lastDay} onChange={fn()} />);
 
         expect(screen.getByRole('button', { name: 'Last 24 hours' })).toBeVisible();
         expect(screen.getByRole('combobox', { name: 'Resolution: 1 hour' })).toBeVisible();
     });
 
     it('changes the resolution', async () => {
-        const onChange = vi.fn();
+        const onChange = fn();
         renderWithQueryClient(<TimeRangeControls value={lastDay} onChange={onChange} />);
 
         await openResolutions();
@@ -50,7 +46,7 @@ describe('TimeRangeControls', () => {
     });
 
     it('describes the resolution that Auto picks for the time range', async () => {
-        renderWithQueryClient(<TimeRangeControls value={lastDay} onChange={vi.fn()} />);
+        renderWithQueryClient(<TimeRangeControls value={lastDay} onChange={fn()} />);
 
         await openResolutions();
 
@@ -63,7 +59,7 @@ describe('TimeRangeControls', () => {
 
     it('dims the resolutions that give too many points or too few', async () => {
         const lastWeek: ChartTimeRange = { earliest: '-7d@h', latest: 'now', resolution: '1h' };
-        renderWithQueryClient(<TimeRangeControls value={lastWeek} onChange={vi.fn()} />);
+        renderWithQueryClient(<TimeRangeControls value={lastWeek} onChange={fn()} />);
 
         await openResolutions();
 
@@ -86,7 +82,7 @@ describe('TimeRangeControls', () => {
     });
 
     it('keeps the resolution when it fits the new time range', async () => {
-        const onChange = vi.fn();
+        const onChange = fn();
         renderWithQueryClient(<TimeRangeControls value={lastDay} onChange={onChange} />);
 
         await userEvent.click(screen.getByRole('button', { name: 'Last 24 hours' }));
@@ -102,7 +98,7 @@ describe('TimeRangeControls', () => {
     });
 
     it('switches to Auto when the resolution gives too many points for the new time range', async () => {
-        const onChange = vi.fn();
+        const onChange = fn();
         const everyMinute: ChartTimeRange = { ...lastDay, resolution: '1m' };
         renderWithQueryClient(<TimeRangeControls value={everyMinute} onChange={onChange} />);
 
@@ -119,7 +115,7 @@ describe('TimeRangeControls', () => {
     });
 
     it('offers no real-time ranges', async () => {
-        renderWithQueryClient(<TimeRangeControls value={lastDay} onChange={vi.fn()} />);
+        renderWithQueryClient(<TimeRangeControls value={lastDay} onChange={fn()} />);
 
         await userEvent.click(screen.getByRole('button', { name: 'Last 24 hours' }));
 

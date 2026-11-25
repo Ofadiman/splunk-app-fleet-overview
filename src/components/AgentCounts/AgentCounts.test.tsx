@@ -1,12 +1,12 @@
+import { expectBoundaryError } from '../../testing/expectBoundaryError';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { oneShot } from '@splunk/splunk-utils/search';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { searchMock as oneShot } from '../../testing/SearchMock';
+import { restoreAllMocks } from '@vitest/spy';
+import { afterEach, beforeEach, describe, expect, it } from '#component-tests';
 import { renderWithQueryClient } from '../../testing/renderWithQueryClient';
 import type { TimeRange } from '../TimeRangeControls/TimeRangeControls.types';
 import AgentCounts from './AgentCounts';
-
-vi.mock('@splunk/splunk-utils/search', () => ({ oneShot: vi.fn() }));
 
 const guid = '316BB7CA-93DC-4C3C-BE06-D154E9A38A0C';
 
@@ -24,19 +24,17 @@ const renderCounts = () => renderWithQueryClient(<AgentCounts guid={guid} timeRa
 
 const countOf = (term: string) => screen.getByText(term).nextElementSibling?.textContent;
 
-const silenceErrorBoundaryLogs = () => vi.spyOn(console, 'error').mockImplementation(() => {});
-
 describe('AgentCounts', () => {
     beforeEach(() => {
-        vi.mocked(oneShot).mockReset();
+        oneShot.mockReset();
     });
 
     afterEach(() => {
-        vi.restoreAllMocks();
+        restoreAllMocks();
     });
 
     it('shows a loading message while the search runs', async () => {
-        vi.mocked(oneShot).mockReturnValue(new Promise(() => {}));
+        oneShot.mockReturnValue(new Promise(() => {}));
 
         renderCounts();
         await waitFor(() => expect(oneShot).toHaveBeenCalled());
@@ -48,7 +46,7 @@ describe('AgentCounts', () => {
     });
 
     it('shows the failing apps, failing hours and reconnects of the agent', async () => {
-        vi.mocked(oneShot).mockResolvedValue(
+        oneShot.mockResolvedValue(
             searchResults({ failingApps: '1', failingHours: '24', reconnects: '122' }),
         );
 
@@ -60,7 +58,7 @@ describe('AgentCounts', () => {
     });
 
     it('shows zeros when the agent had no problems', async () => {
-        vi.mocked(oneShot).mockResolvedValue({ results: [] });
+        oneShot.mockResolvedValue({ results: [] });
 
         renderCounts();
 
@@ -70,7 +68,7 @@ describe('AgentCounts', () => {
     });
 
     it('searches only this agent in the time range', async () => {
-        vi.mocked(oneShot).mockResolvedValue({ results: [] });
+        oneShot.mockResolvedValue({ results: [] });
 
         renderCounts();
         await waitFor(() => expect(oneShot).toHaveBeenCalled());
@@ -88,8 +86,8 @@ describe('AgentCounts', () => {
     });
 
     it('runs the search again when you try again after it fails', async () => {
-        silenceErrorBoundaryLogs();
-        vi.mocked(oneShot)
+        expectBoundaryError('Search job quota exceeded');
+        oneShot
             .mockRejectedValueOnce(new Error('Search job quota exceeded'))
             .mockResolvedValueOnce(
                 searchResults({ failingApps: '0', failingHours: '0', reconnects: '3' }),

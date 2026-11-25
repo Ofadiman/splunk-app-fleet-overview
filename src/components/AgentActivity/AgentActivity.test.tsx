@@ -1,13 +1,13 @@
+import { expectBoundaryError } from '../../testing/expectBoundaryError';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { oneShot } from '@splunk/splunk-utils/search';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { searchMock as oneShot } from '../../testing/SearchMock';
+import { restoreAllMocks } from '@vitest/spy';
+import { afterEach, beforeEach, describe, expect, it } from '#component-tests';
 import { formatTime } from '../../formatTime';
 import { renderWithQueryClient } from '../../testing/renderWithQueryClient';
 import type { TimeRange } from '../TimeRangeControls/TimeRangeControls.types';
 import AgentActivity from './AgentActivity';
-
-vi.mock('@splunk/splunk-utils/search', () => ({ oneShot: vi.fn() }));
 
 const guid = '316BB7CA-93DC-4C3C-BE06-D154E9A38A0C';
 
@@ -80,19 +80,17 @@ const cellTexts = (row: HTMLElement) =>
         .getAllByRole('cell')
         .map((cell) => cell.textContent);
 
-const silenceErrorBoundaryLogs = () => vi.spyOn(console, 'error').mockImplementation(() => {});
-
 describe('AgentActivity', () => {
     beforeEach(() => {
-        vi.mocked(oneShot).mockReset();
+        oneShot.mockReset();
     });
 
     afterEach(() => {
-        vi.restoreAllMocks();
+        restoreAllMocks();
     });
 
     it('shows a loading message while the search runs', async () => {
-        vi.mocked(oneShot).mockReturnValue(new Promise(() => {}));
+        oneShot.mockReturnValue(new Promise(() => {}));
 
         renderActivity();
         await waitFor(() => expect(oneShot).toHaveBeenCalled());
@@ -102,7 +100,7 @@ describe('AgentActivity', () => {
     });
 
     it('lists what happened to the agent, with repeated events as one entry', async () => {
-        vi.mocked(oneShot).mockResolvedValue(searchResults([failures, upgrade, install, restarts]));
+        oneShot.mockResolvedValue(searchResults([failures, upgrade, install, restarts]));
 
         renderActivity();
 
@@ -124,7 +122,7 @@ describe('AgentActivity', () => {
     });
 
     it('says it shows every entry when there are no more', async () => {
-        vi.mocked(oneShot).mockResolvedValue(searchResults([failures, install]));
+        oneShot.mockResolvedValue(searchResults([failures, install]));
 
         renderActivity();
 
@@ -132,7 +130,7 @@ describe('AgentActivity', () => {
     });
 
     it('says how many entries there are when it shows only the most recent ones', async () => {
-        vi.mocked(oneShot).mockResolvedValue(searchResults([failures, install], 230));
+        oneShot.mockResolvedValue(searchResults([failures, install], 230));
 
         renderActivity();
 
@@ -142,7 +140,7 @@ describe('AgentActivity', () => {
     });
 
     it('tells when nothing happened in the time range', async () => {
-        vi.mocked(oneShot).mockResolvedValue(searchResults([]));
+        oneShot.mockResolvedValue(searchResults([]));
 
         renderActivity();
 
@@ -150,7 +148,7 @@ describe('AgentActivity', () => {
     });
 
     it('searches only this agent in the time range', async () => {
-        vi.mocked(oneShot).mockResolvedValue(searchResults([]));
+        oneShot.mockResolvedValue(searchResults([]));
 
         renderActivity();
         await waitFor(() => expect(oneShot).toHaveBeenCalled());
@@ -168,8 +166,8 @@ describe('AgentActivity', () => {
     });
 
     it('runs the search again when you try again after it fails', async () => {
-        silenceErrorBoundaryLogs();
-        vi.mocked(oneShot)
+        expectBoundaryError('Search job quota exceeded');
+        oneShot
             .mockRejectedValueOnce(new Error('Search job quota exceeded'))
             .mockResolvedValueOnce(searchResults([install]));
 
