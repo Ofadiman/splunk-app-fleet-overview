@@ -26,6 +26,7 @@
     "test:cypress:firefox": "cypress run --component --browser=firefox",
     "test:cypress:webkit": "cypress run --component --browser=webkit --config=experimentalWebKitSupport=true,injectDocumentDomain=true",
     "test:cypress:coverage": "FLEET_TEST_COVERAGE=true cypress run --component --browser=chrome",
+    "test:e2e": "playwright test",
     "test:coverage": "pnpm test:vitest:coverage && pnpm test:cypress:coverage && node scripts/compareTestCoverage.ts",
     "simulate": "node scripts/simulate.ts"
   },
@@ -52,6 +53,7 @@
   },
   "devDependencies": {
     "@faker-js/faker": "^10.6.0",
+    "@playwright/test": "^1.65.1",
     "@swc/plugin-styled-components": "^13.0.0",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.9.1",

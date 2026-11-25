@@ -372,6 +372,21 @@ the package `dist/fleet_overview.tar.gz`, the AppInspect report `dist/appinspect
 failure screenshots in `dist/test-attachments/` for Vitest and `dist/cypress/screenshots/` for
 Cypress. `pnpm simulate` writes to `.simulation/`, which git ignores too.
 
+### End-to-end test
+
+Playwright runs one Chromium test against the local Splunk Web instance. It signs in with the
+development credentials, changes the Overview chart resolution, and checks that the selected
+resolution survives a reload.
+
+```bash
+pnpm exec playwright install chromium
+pnpm build
+docker compose up --detach --wait splunk
+pnpm test:e2e
+```
+
+Playwright saves failure traces in `dist/playwright/`.
+
 ## Validating with AppInspect
 
 [AppInspect](https://dev.splunk.com/enterprise/docs/developapps/testvalidate/appinspect/) is
