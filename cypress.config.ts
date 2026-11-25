@@ -8,12 +8,14 @@ import {
     instrumentTestCoverage,
 } from './testCoverage.ts';
 
+const ciCommandTimeout = 10_000;
+
 export default defineConfig({
     screenshotsFolder: 'dist/cypress/screenshots',
-    ...(process.env.CI && process.env.BROWSER === 'webkit' && { defaultCommandTimeout: 10_000 }),
     viewportWidth: 1280,
     viewportHeight: 720,
     e2e: {
+        ...(process.env.CI && { defaultCommandTimeout: ciCommandTimeout }),
         baseUrl: 'http://localhost:18000',
         specPattern: 'cypress/e2e/**/*.cy.ts',
         supportFile: false,
@@ -33,6 +35,8 @@ export default defineConfig({
         },
     },
     component: {
+        ...(process.env.CI &&
+            process.env.BROWSER === 'webkit' && { defaultCommandTimeout: ciCommandTimeout }),
         devServer: {
             framework: 'react',
             bundler: 'vite',
